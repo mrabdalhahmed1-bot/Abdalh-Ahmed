@@ -1,0 +1,6 @@
+{
+  "name": "AQ Coaching | Abdullah Qasim",
+  "description": "AQ Coaching - المنصة التدريبية الخاصة بالمدرب عبدالله قاسم (Abdullah Qasim) لمتابعة التمارين والتغذية والنتائج.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -7,7 +7,8 @@ import {
   EyeOff, 
   Sparkles, 
   AlertCircle, 
-  Smartphone
+  Smartphone,
+  ShieldCheck
 } from 'lucide-react';
 import { TraineeProfile } from '../../types/fitness';
 

@@ -347,9 +347,10 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
   const handleApplyProgramSplitToTrainee = (split: typeof PROGRAM_SPLIT_TEMPLATES[0]) => {
     if (!targetTrainee) return;
     const newDays: WorkoutDay[] = split.days.map((d, idx) => ({
-      dayNumber: idx + 1,
+      id: `day-${idx + 1}-${Date.now()}`,
       dayName: d.dayName,
       focusArea: d.focusArea,
+      estimatedMinutes: 60,
       exercises: exerciseCatalog.slice(idx * 4, idx * 4 + d.exercisesCount).map(e => ({
         id: e.id,
         nameAr: e.nameAr,
@@ -357,22 +358,23 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
         primaryMuscle: e.primaryMuscle,
         equipment: e.equipment,
         thumbnailUrl: e.thumbnailUrl,
-        restSeconds: 90,
         executionCues: e.executionCues,
         sets: [
-          { setNumber: 1, reps: 10, targetReps: 10, weight: 50, targetWeight: 50, completed: false },
-          { setNumber: 2, reps: 10, targetReps: 10, weight: 50, targetWeight: 50, completed: false },
-          { setNumber: 3, reps: 10, targetReps: 10, weight: 50, targetWeight: 50, completed: false }
+          { setNumber: 1, targetReps: '10', actualReps: 10, actualWeight: 50, restSeconds: 90, completed: false },
+          { setNumber: 2, targetReps: '10', actualReps: 10, actualWeight: 50, restSeconds: 90, completed: false },
+          { setNumber: 3, targetReps: '10', actualReps: 10, actualWeight: 50, restSeconds: 90, completed: false }
         ]
       }))
     }));
 
     const updatedProgram: WorkoutProgram = {
-      programTitle: split.title,
+      id: `prog-${Date.now()}`,
+      title: split.title,
       description: split.description,
       splitType: split.splitType,
       daysPerWeek: split.daysPerWeek,
-      days: newDays
+      days: newDays,
+      createdDate: new Date().toISOString()
     };
 
     updateTraineeProgram(targetTrainee.id, updatedProgram);
@@ -394,7 +396,11 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
       proteinGrams,
       carbsGrams,
       fatsGrams,
-      waterLiters: diet.waterLiters
+      waterLiters: diet.waterLiters,
+      fiberGrams: 30,
+      cardioMinutesPerWeek: 120,
+      cardioType: 'LISS',
+      stepGoal: 10000
     });
 
     showNotification(`تم ضبط دايت "${diet.title}" (${targetCalories} سعرة) لـ ${targetTrainee.fullName}!`);
@@ -576,7 +582,7 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
                         البرنامج التدريبي الفعلي (تمارين، جولات، أوزان)
                       </h4>
                       <span className="text-[10px] text-neutral-400">
-                        {editableProgram?.programTitle || 'الجدول التدريبي الحالي'}
+                        {editableProgram?.title || 'الجدول التدريبي الحالي'}
                       </span>
                     </div>
                   </div>
@@ -680,7 +686,7 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
                                 <span className="text-neutral-400 block mb-0.5 text-[10px]">التكرارات:</span>
                                 <input
                                   type="number"
-                                  value={targetSet.targetReps || targetSet.reps || 10}
+                                  value={targetSet.actualReps || parseInt(targetSet.targetReps) || 10}
                                   onChange={(e) => handleUpdateExercise(selectedDayIdx, exIdx, 'reps', e.target.value)}
                                   className="w-full bg-neutral-950 border border-neutral-750 rounded-lg px-2 py-1 text-xs text-center font-mono text-white font-bold"
                                 />
@@ -689,7 +695,7 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
                                 <span className="text-neutral-400 block mb-0.5 text-[10px]">الوزن المستهدف (كغ):</span>
                                 <input
                                   type="number"
-                                  value={targetSet.targetWeight || targetSet.weight || 0}
+                                  value={targetSet.actualWeight || 0}
                                   onChange={(e) => handleUpdateExercise(selectedDayIdx, exIdx, 'targetWeight', e.target.value)}
                                   className="w-full bg-neutral-950 border border-neutral-750 rounded-lg px-2 py-1 text-xs text-center font-mono text-amber-400 font-bold"
                                 />

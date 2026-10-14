@@ -357,16 +357,16 @@ export const TraineeTrainingTab: React.FC<TraineeTrainingTabProps> = ({
     const currentDay = activeTrainee?.program?.days[selectedDayIndex];
     exportProgramToPdf({
       title: `جدول التمارين اليومية: ${currentDay?.dayName || 'يوم التمرين'}`,
-      subtitle: currentDay?.focusArea || activeTrainee?.program?.programTitle,
+      subtitle: currentDay?.focusArea || activeTrainee?.program?.title,
       category: 'workout',
       traineeName: activeTrainee?.fullName || 'المتدرب',
       targetGoal: activeTrainee?.goalTitle,
       items: (currentDay?.exercises || []).map(ex => ({
         title: `${ex.nameAr} (${ex.nameEn || ''})`,
         subtitle: `${ex.primaryMuscle} · ${ex.equipment}`,
-        badges: [`${ex.sets.length} جولات`, `راحة ${ex.restSeconds}ث`],
+        badges: [`${ex.sets.length} جولات`, `راحة ${ex.sets[0]?.restSeconds || 90}ث`],
         details: [
-          `الجولات المخططة: ${ex.sets.map(s => `${s.targetWeight || s.weight}كغ × ${s.targetReps || s.reps}تكرار`).join(' | ')}`,
+          `الجولات المخططة: ${ex.sets.map(s => `${s.actualWeight || 50}كغ × ${s.targetReps || s.actualReps}تكرار`).join(' | ')}`,
           ...(ex.executionCues || [])
         ]
       })),
@@ -417,12 +417,12 @@ export const TraineeTrainingTab: React.FC<TraineeTrainingTabProps> = ({
       items: [
         {
           title: cardioLogs.c1.title,
-          subtitle: `${cardioLogs.c1.minutes} دقيقة · ${cardioLogs.c1.speed}`,
+          subtitle: `${cardioLogs.c1.minutes} دقيقة · ${cardioLogs.c1.distance} كم`,
           details: ['الحفاظ على نبض القلب في المنطقة الثانية (Zone 2) لحرق الدهون الصافية']
         },
         {
           title: cardioLogs.c2.title,
-          subtitle: `${cardioLogs.c2.minutes} دقيقة · ${cardioLogs.c2.speed}`,
+          subtitle: `${cardioLogs.c2.minutes} دقيقة · ${cardioLogs.c2.distance} كم`,
           details: ['تنظيم التنفس والحفاظ على وضعية جذع مستقيمة']
         }
       ],

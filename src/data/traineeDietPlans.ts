@@ -127,7 +127,7 @@ export const DIET_PLAN_YOUSSEF_GAMAL: TraineeDietPlan = {
           carbs: 4.8,
           fat: 14.8,
           fiber: 2.5,
-          image: 'https://images.unsplash.com/photo-1567894340315-735d7c361db0?w=500&auto=format&fit=crop&q=80',
+          image: '/images/roasted_peanuts.jpg',
           note: 'دهون غير مشبعة تعزز إنتاج التستوستيرون'
         },
         {

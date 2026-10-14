@@ -15,12 +15,14 @@ import {
   Play,
   Video,
   Zap,
-  X
+  X,
+  FileDown
 } from 'lucide-react';
 import { RestTimer } from './RestTimer';
 import { ExerciseDetailModal } from './ExerciseDetailModal';
 import { ExerciseSwapModal } from './ExerciseSwapModal';
 import { MobilityCardioDetailModal } from './MobilityCardioDetailModal';
+import { exportProgramToPdf } from '../../utils/pdfExport';
 
 interface TraineeTrainingTabProps {
   onOpenRestTimer: () => void;
@@ -39,7 +41,7 @@ const WARMUP_DRILLS = [
     nameEn: 'Cat-Cow & Thoracic Rotations',
     duration: '10 إلى 12 تكرار كامل',
     instructions: 'تقويس وفتح فقرات الظهر الصدرية وأسفل الظهر لتحرير مفاصل العمود الفقري وتحسين المدى الحركي.',
-    videoYtId: 'w_UKp_a0V9w'
+    videoYtId: 'pbcg9qN8K-8'
   },
   {
     id: 'w3',
@@ -53,7 +55,7 @@ const WARMUP_DRILLS = [
     nameEn: 'Leg Swings (Front-to-Back & Lateral)',
     duration: '10 تكرارات لكل ساق',
     instructions: 'أرجحة محكومة بدون حركة عشوائية في الحوض لإطالة أوتار الركبة والعضلة الضامة وتنشيط الساقين.',
-    videoYtId: '6C90v2u0s-w'
+    videoYtId: 'tlfahndNPPI'
   },
   {
     id: 'w5',
@@ -282,6 +284,22 @@ export const TraineeTrainingTab: React.FC<TraineeTrainingTabProps> = ({
     setIsRestTimerOpen(true);
   };
 
+  // Ensure scroll is instantly placed at top whenever switching sections (Request 13 & 14)
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    setTimeout(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    }, 20);
+  };
+
+  useEffect(() => {
+    scrollToTop();
+  }, [activeSection]);
+
   const handleToggleSet = (exerciseId: string, setNumber: number) => {
     toggleExerciseSetCompleted(activeTrainee.id, currentDay.id, exerciseId, setNumber);
     triggerCheer('أحسنت 🔥🔥');
@@ -315,6 +333,105 @@ export const TraineeTrainingTab: React.FC<TraineeTrainingTabProps> = ({
     });
   };
 
+  // PDF Export Handlers (Request 4)
+  const handleExportWarmupPdf = () => {
+    exportProgramToPdf({
+      title: 'بروتوكول الإحماء الديناميكي وتجهيز المفاصل',
+      subtitle: 'Dynamic Warm-up & Joint Mobility Protocol',
+      category: 'warmup',
+      traineeName: activeTrainee?.fullName || 'المتدرب',
+      targetGoal: activeTrainee?.goalTitle,
+      items: WARMUP_DRILLS.map(w => ({
+        title: w.nameEn,
+        subtitle: w.duration,
+        details: [w.instructions]
+      })),
+      summaryNotes: [
+        'قم بأداء التمارين ببطء وتحكم لتزييت المفاصل قبل حمل الأوزان الثقيلة',
+        'تجنب الحركات المفاجئة أثناء تدوير الكتف والرقبة'
+      ]
+    });
+  };
+
+  const handleExportWorkoutPdf = () => {
+    const currentDay = activeTrainee?.program?.days[selectedDayIndex];
+    exportProgramToPdf({
+      title: `جدول التمارين اليومية: ${currentDay?.dayName || 'يوم التمرين'}`,
+      subtitle: currentDay?.focusArea || activeTrainee?.program?.programTitle,
+      category: 'workout',
+      traineeName: activeTrainee?.fullName || 'المتدرب',
+      targetGoal: activeTrainee?.goalTitle,
+      items: (currentDay?.exercises || []).map(ex => ({
+        title: `${ex.nameAr} (${ex.nameEn || ''})`,
+        subtitle: `${ex.primaryMuscle} · ${ex.equipment}`,
+        badges: [`${ex.sets.length} جولات`, `راحة ${ex.restSeconds}ث`],
+        details: [
+          `الجولات المخططة: ${ex.sets.map(s => `${s.targetWeight || s.weight}كغ × ${s.targetReps || s.reps}تكرار`).join(' | ')}`,
+          ...(ex.executionCues || [])
+        ]
+      })),
+      summaryNotes: [
+        'احرص على أداء المدى الحركي الكامل والتحكم بالنزول السلبي (Eccentric 2-3s)',
+        'سجل أوزانك وتكراراتك دورياً في التطبيق لتطبيق الزيادة التصاعدية بالأحمال'
+      ]
+    });
+  };
+
+  const handleExportMobilityPdf = () => {
+    exportProgramToPdf({
+      title: 'بروتوكول المرونة الحركية والاستشفاء',
+      subtitle: 'Active Mobility & Recovery Protocol',
+      category: 'mobility',
+      traineeName: activeTrainee?.fullName || 'المتدرب',
+      targetGoal: activeTrainee?.goalTitle,
+      items: [
+        {
+          title: mobilityLogs.m1.title,
+          subtitle: mobilityLogs.m1.subtitle,
+          details: mobilityLogs.m1.tips
+        },
+        {
+          title: mobilityLogs.m2.title,
+          subtitle: mobilityLogs.m2.subtitle,
+          details: mobilityLogs.m2.tips
+        },
+        {
+          title: mobilityLogs.m3.title,
+          subtitle: mobilityLogs.m3.subtitle,
+          details: mobilityLogs.m3.tips
+        }
+      ],
+      summaryNotes: [
+        'المرونة بعد الأوزان تزيد من تدفق الدم وتسرع الاستشفاء العضلي ومنع الشد العضلي'
+      ]
+    });
+  };
+
+  const handleExportCardioPdf = () => {
+    exportProgramToPdf({
+      title: 'بروتوكول اللياقة والكارديو وحرق الدهون',
+      subtitle: 'Cardio & Conditioning Protocol',
+      category: 'cardio',
+      traineeName: activeTrainee?.fullName || 'المتدرب',
+      targetGoal: activeTrainee?.goalTitle,
+      items: [
+        {
+          title: cardioLogs.c1.title,
+          subtitle: `${cardioLogs.c1.minutes} دقيقة · ${cardioLogs.c1.speed}`,
+          details: ['الحفاظ على نبض القلب في المنطقة الثانية (Zone 2) لحرق الدهون الصافية']
+        },
+        {
+          title: cardioLogs.c2.title,
+          subtitle: `${cardioLogs.c2.minutes} دقيقة · ${cardioLogs.c2.speed}`,
+          details: ['تنظيم التنفس والحفاظ على وضعية جذع مستقيمة']
+        }
+      ],
+      summaryNotes: [
+        'مستهدف الخطوات اليومي 10,000 إلى 12,000 خطوة لتعزيز معدل الأيض اليومي (NEAT)'
+      ]
+    });
+  };
+
   // Today Date formatted in Arabic (e.g. الاثنين، 28 سبتمبر)
   const todayDateStr = new Intl.DateTimeFormat('ar-EG', {
     weekday: 'long',
@@ -342,17 +459,17 @@ export const TraineeTrainingTab: React.FC<TraineeTrainingTabProps> = ({
         </div>
       </div>
 
-      {/* 4 Section Selector Tabs in Dark Theme */}
+      {/* 4 Section Selector Tabs in Dark Theme with Matching Domain Colors (Request 3) */}
       <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
         <button
           onClick={() => setActiveSection('warmup')}
           className={`py-3 px-1.5 sm:px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer border ${
             activeSection === 'warmup'
-              ? 'bg-emerald-500 text-neutral-950 border-emerald-400 font-black shadow-md shadow-emerald-500/20'
+              ? 'bg-amber-500 text-neutral-950 border-amber-400 font-black shadow-md shadow-amber-500/20'
               : 'bg-neutral-900/80 text-neutral-300 border-neutral-800 hover:bg-neutral-800 hover:text-white'
           }`}
         >
-          <Zap className="w-3.5 h-3.5" />
+          <Zap className="w-3.5 h-3.5 text-amber-400" />
           <span>الإحماء</span>
         </button>
 
@@ -364,7 +481,7 @@ export const TraineeTrainingTab: React.FC<TraineeTrainingTabProps> = ({
               : 'bg-neutral-900/80 text-neutral-300 border-neutral-800 hover:bg-neutral-800 hover:text-white'
           }`}
         >
-          <Dumbbell className="w-3.5 h-3.5" />
+          <Dumbbell className="w-3.5 h-3.5 text-emerald-400" />
           <span>التمرين</span>
         </button>
 
@@ -372,11 +489,11 @@ export const TraineeTrainingTab: React.FC<TraineeTrainingTabProps> = ({
           onClick={() => setActiveSection('mobility')}
           className={`py-3 px-1.5 sm:px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer border ${
             activeSection === 'mobility'
-              ? 'bg-emerald-500 text-neutral-950 border-emerald-400 font-black shadow-md shadow-emerald-500/20'
+              ? 'bg-teal-500 text-neutral-950 border-teal-400 font-black shadow-md shadow-teal-500/20'
               : 'bg-neutral-900/80 text-neutral-300 border-neutral-800 hover:bg-neutral-800 hover:text-white'
           }`}
         >
-          <Activity className="w-3.5 h-3.5" />
+          <Activity className="w-3.5 h-3.5 text-teal-400" />
           <span>المرونة</span>
         </button>
 
@@ -384,11 +501,11 @@ export const TraineeTrainingTab: React.FC<TraineeTrainingTabProps> = ({
           onClick={() => setActiveSection('cardio')}
           className={`py-3 px-1.5 sm:px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer border ${
             activeSection === 'cardio'
-              ? 'bg-emerald-500 text-neutral-950 border-emerald-400 font-black shadow-md shadow-emerald-500/20'
+              ? 'bg-rose-500 text-neutral-950 border-rose-400 font-black shadow-md shadow-rose-500/20'
               : 'bg-neutral-900/80 text-neutral-300 border-neutral-800 hover:bg-neutral-800 hover:text-white'
           }`}
         >
-          <Flame className="w-3.5 h-3.5" />
+          <Flame className="w-3.5 h-3.5 text-rose-400" />
           <span>اللياقة</span>
         </button>
       </div>
@@ -396,12 +513,22 @@ export const TraineeTrainingTab: React.FC<TraineeTrainingTabProps> = ({
       {/* SECTION 0: WARMUP (الإحماء الديناميكي وتهيئة المفاصل) */}
       {activeSection === 'warmup' && (
         <div className="space-y-4">
-          <div className="bg-neutral-900/90 p-4 rounded-2xl border border-neutral-800 text-xs text-neutral-300 space-y-1">
-            <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-emerald-400" />
-              <h3 className="text-sm font-black text-white">بروتوكول الإحماء الديناميكي وتهيئة المفاصل</h3>
+          <div className="bg-neutral-900/90 p-4 rounded-2xl border border-neutral-800 text-xs text-neutral-300 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-amber-400" />
+                <h3 className="text-sm font-black text-white">بروتوكول الإحماء الديناميكي وتهيئة المفاصل</h3>
+              </div>
+              <button
+                type="button"
+                onClick={handleExportWarmupPdf}
+                className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500 text-amber-400 hover:text-neutral-950 border border-amber-500/30 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <FileDown className="w-3.5 h-3.5" />
+                <span>تحميل PDF 📄</span>
+              </button>
             </div>
-            <p className="text-[11px] text-neutral-400">
+            <p className="text-[11px] text-neutral-400 leading-relaxed">
               قم بأداء هذه التمارين من 5 إلى 7 دقائق قبل البدء برفع الأوزان لرفع حرارة العضلات وتزييت المفاصل وتفادي الإصابات.
             </p>
           </div>
@@ -415,13 +542,13 @@ export const TraineeTrainingTab: React.FC<TraineeTrainingTabProps> = ({
                   key={item.id}
                   className={`p-4 rounded-2xl border transition-all ${
                     isDone
-                      ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-200'
+                      ? 'bg-amber-950/20 border-amber-500/40 text-amber-200'
                       : 'bg-neutral-900/90 border-neutral-800 text-white'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <div className="flex items-start gap-2.5">
-                      <span className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+                      <span className="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
                         {idx + 1}
                       </span>
                       <div>
@@ -439,7 +566,7 @@ export const TraineeTrainingTab: React.FC<TraineeTrainingTabProps> = ({
                       }}
                       className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                         isDone
-                          ? 'bg-emerald-500 text-neutral-950 shadow-sm'
+                          ? 'bg-amber-500 text-neutral-950 shadow-sm'
                           : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border border-neutral-700'
                       }`}
                     >
@@ -456,10 +583,10 @@ export const TraineeTrainingTab: React.FC<TraineeTrainingTabProps> = ({
                     <button
                       type="button"
                       onClick={() => setSelectedWarmupVideo(item)}
-                      className="px-2.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                      className="px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
                     >
                       <Video className="w-3.5 h-3.5" />
-                      <span>فيديو أداء الحركة والتكنيك (15ث)</span>
+                      <span>فيديو أداء الحركة والتكنيك (15ث) 🎥</span>
                     </button>
                   </div>
                 </div>
@@ -467,14 +594,15 @@ export const TraineeTrainingTab: React.FC<TraineeTrainingTabProps> = ({
             })}
           </div>
 
-          {/* Action button to proceed to workout schedule */}
+          {/* Action button to proceed to workout schedule (Request 13: Scrolls smoothly to top) */}
           <div className="pt-2">
             <button
               onClick={() => {
                 setActiveSection('workout');
+                scrollToTop();
                 triggerCheer('جاهز للتمرين بقوة 💪🔥');
               }}
-              className="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-black text-xs shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-neutral-950 font-black text-xs shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <span>الانتقال إلى جدول التمارين اليومية</span>
               <ChevronLeft className="w-4 h-4 stroke-[3]" />
@@ -518,13 +646,25 @@ export const TraineeTrainingTab: React.FC<TraineeTrainingTabProps> = ({
                 التركيز: <strong className="text-emerald-400">{currentDay.focusArea}</strong> · {currentDay.estimatedMinutes} دقيقة تقريباً
               </span>
             </div>
-            <button
-              onClick={() => setIsRestTimerOpen(true)}
-              className="px-3.5 py-2 bg-neutral-800 hover:bg-neutral-700 text-emerald-400 border border-emerald-500/30 text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-xs shrink-0 cursor-pointer self-start sm:self-auto"
-            >
-              <Clock className="w-3.5 h-3.5" />
-              <span>مؤقت الراحة</span>
-            </button>
+            <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={handleExportWorkoutPdf}
+                className="px-3.5 py-2 bg-emerald-500/15 hover:bg-emerald-500 text-emerald-400 hover:text-neutral-950 border border-emerald-500/30 text-xs font-black rounded-xl flex items-center gap-1.5 shadow-xs cursor-pointer transition-all"
+                title="تحميل جدول تمارين اليوم بصيغة PDF"
+              >
+                <FileDown className="w-3.5 h-3.5" />
+                <span>تحميل PDF 📄</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsRestTimerOpen(true)}
+                className="px-3.5 py-2 bg-neutral-800 hover:bg-neutral-700 text-emerald-400 border border-emerald-500/30 text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-xs shrink-0 cursor-pointer"
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>مؤقت الراحة</span>
+              </button>
+            </div>
           </div>
 
           {/* Instructions Notice for Trainee */}
@@ -714,6 +854,22 @@ export const TraineeTrainingTab: React.FC<TraineeTrainingTabProps> = ({
             })}
           </div>
 
+          {/* Action button to proceed to mobility schedule (Request 14) */}
+          <div className="pt-3">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveSection('mobility');
+                scrollToTop();
+                triggerCheer('عاش يا بطل! ننتقل لتمارين المرونة والاستشفاء 🧘‍♂️💪');
+              }}
+              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-teal-500 to-cyan-400 hover:from-teal-400 hover:to-cyan-300 text-neutral-950 font-black text-xs shadow-lg shadow-teal-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <span>الإنتقال إلى جدول المرونة 🧘‍♂️</span>
+              <ChevronLeft className="w-4 h-4 stroke-[3]" />
+            </button>
+          </div>
+
         </div>
       )}
 
@@ -721,12 +877,25 @@ export const TraineeTrainingTab: React.FC<TraineeTrainingTabProps> = ({
       {activeSection === 'mobility' && (
         <div className="space-y-3">
           
-          <div className="p-3.5 rounded-xl bg-neutral-900/90 border border-neutral-800 text-xs text-neutral-300">
-            <span className="font-bold text-emerald-400 block mb-1">
-              بروتوكول الإحماء والمرونة الحركية:
-            </span>
+          <div className="p-3.5 rounded-xl bg-neutral-900/90 border border-neutral-800 text-xs text-neutral-300 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Activity className="w-4 h-4 text-teal-400" />
+                <span className="font-bold text-white text-sm">
+                  بروتوكول المرونة والاستشفاء الحركي
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleExportMobilityPdf}
+                className="px-3 py-1.5 rounded-xl bg-teal-500/15 hover:bg-teal-500 text-teal-400 hover:text-neutral-950 border border-teal-500/30 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <FileDown className="w-3.5 h-3.5" />
+                <span>تحميل PDF 📄</span>
+              </button>
+            </div>
             <p className="text-[11px] text-neutral-400">
-              أدخل التكرارات أو الثواني التي أنجزتها، ثم اضغط <strong>"إضافة"</strong> لتفعيل علامة الصح الخضراء.
+              أدخل التكرارات أو الثواني التي أنجزتها، ثم اضغط <strong>"إضافة"</strong> لتفعيل علامة الصح.
             </p>
           </div>
 
@@ -980,6 +1149,22 @@ export const TraineeTrainingTab: React.FC<TraineeTrainingTabProps> = ({
             </div>
           </div>
 
+          {/* Action button to proceed to fitness schedule (Request 14) */}
+          <div className="pt-3">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveSection('cardio');
+                scrollToTop();
+                triggerCheer('إلى جدول اللياقة والكارديو لإنهاء اليوم التدريبي بأعلى مستوى 🏃‍♂️🔥');
+              }}
+              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-400 hover:to-amber-400 text-neutral-950 font-black text-xs shadow-lg shadow-rose-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <span>الإنتقال إلى جدول اللياقة 🏃‍♂️</span>
+              <ChevronLeft className="w-4 h-4 stroke-[3]" />
+            </button>
+          </div>
+
         </div>
       )}
 
@@ -987,10 +1172,23 @@ export const TraineeTrainingTab: React.FC<TraineeTrainingTabProps> = ({
       {activeSection === 'cardio' && (
         <div className="space-y-3">
           
-          <div className="p-3.5 rounded-xl bg-neutral-900/90 border border-neutral-800 text-xs text-neutral-300">
-            <span className="font-bold text-emerald-400 block mb-1">
-              بروتوكول اللياقة والكارديو اليومي:
-            </span>
+          <div className="p-3.5 rounded-xl bg-neutral-900/90 border border-neutral-800 text-xs text-neutral-300 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Flame className="w-4 h-4 text-rose-400" />
+                <span className="font-bold text-white text-sm">
+                  بروتوكول اللياقة والكارديو وحرق الدهون
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleExportCardioPdf}
+                className="px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500 text-rose-400 hover:text-neutral-950 border border-rose-500/30 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <FileDown className="w-3.5 h-3.5" />
+                <span>تحميل PDF 📄</span>
+              </button>
+            </div>
             <p className="text-[11px] text-neutral-400">
               سجل مدتك ومسافتك المنجزة واضغط <strong>"إضافة"</strong> لتثبيت التقرير بعلامة صح خضراء.
             </p>
@@ -1185,6 +1383,42 @@ export const TraineeTrainingTab: React.FC<TraineeTrainingTabProps> = ({
                   </>
                 )}
               </button>
+            </div>
+          </div>
+
+          {/* Motivational completion card for Ideal Trainee (Request 14) */}
+          <div className="mt-6 p-5 rounded-3xl bg-gradient-to-br from-neutral-900 via-neutral-950 to-amber-950/40 border border-amber-500/40 text-right space-y-3.5 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-500" />
+            
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-11 h-11 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center text-xl shadow-inner">
+                  👑
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-black text-white">
+                      رسالة تقدير وفخر: {activeTrainee?.fullName || 'بطلنا الرياضي'}
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500 text-neutral-950 text-[10px] font-black shadow-sm">
+                      العميل المثالي 🌟
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-emerald-400 font-bold block mt-0.5">
+                    ✓ إتمام البرنامج التدريبي اليومي كاملاً 100%
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-neutral-950/80 p-4 rounded-2xl border border-neutral-800 space-y-2">
+              <p className="text-xs text-neutral-200 leading-relaxed font-medium">
+                "يا بطل، الالتزام الحقيقي هو ما أظهرته اليوم! لقد أنجزت بروتوكول الإحماء الديناميكي، ثم رفعت أوزانك بتركيز وانضباط تام، وعززت مرونة واستشفاء مفاصلك، وختمت اليوم بحرق السعرات ورفع مستوى لياقتك البدنية. هذا الانضباط الفولاذي هو الفارق بين النتائج العادية والتحول الجسدي الاستثنائي! فخور جداً بأدائك اليوم ومستمرون معاً حتى الوصول للقمة."
+              </p>
+              <div className="flex items-center justify-between pt-2 border-t border-neutral-800/80 text-[11px]">
+                <span className="text-amber-400 font-bold">🎯 هدفك: {activeTrainee?.goalTitle || 'أفضل فورمة وصحة'}</span>
+                <span className="text-neutral-400 font-mono">كوتش عبدالله قاسم | AQ Coaching</span>
+              </div>
             </div>
           </div>
 

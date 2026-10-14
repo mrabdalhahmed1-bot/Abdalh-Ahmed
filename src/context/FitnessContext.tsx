@@ -14,34 +14,36 @@ import { INITIAL_TRAINEES, INITIAL_MESSAGES, MASTER_EXERCISES, COACH_INFO, PROGR
 import { DIET_PLAN_YOUSSEF_GAMAL, DIET_PLAN_MOHAMED_QASIM } from '../data/traineeDietPlans';
 import { PROGRAM_MOHAMED_QASIM } from '../data/mohamedQasimProgram';
 
-interface FitnessContextType {
+export interface ExerciseWeightLog {
+  id: string;
+  traineeId: string;
+  exerciseId: string;
+  exerciseName: string;
+  date: string;
+  weightKg: number;
+  reps: number;
+  setNumber: number;
+}
+
+export interface FitnessContextType {
   userRole: UserRole;
   setUserRole: (role: UserRole) => void;
+  authenticatedTraineeId: string | null;
+  loginTrainee: (username: string, accessPin: string) => { success: boolean; trainee?: TraineeProfile; error?: string; isCoach?: boolean };
+  loginTraineeDirect: (traineeId: string) => void;
+  logoutTrainee: () => void;
+  verifyCoachCredentials: (inputUsername: string, inputPin: string) => boolean;
+  loginAsCoach: () => void;
+  trainees: TraineeProfile[];
   currentTraineeId: string;
   setCurrentTraineeId: (id: string) => void;
-  trainees: TraineeProfile[];
   activeTrainee: TraineeProfile;
-  coachInfo: typeof COACH_INFO;
-  updateCoachInfo: (newInfo: Partial<typeof COACH_INFO>) => void;
-  messages: ChatMessage[];
-  exerciseCatalog: MasterExercise[];
-  addCustomExercise: (newEx: MasterExercise) => void;
-  
-  // Authentication & Access Control
-  authenticatedTraineeId: string | null;
-  loginTrainee: (username: string, pin: string) => { success: boolean; trainee?: TraineeProfile; isCoach?: boolean; error?: string };
-  logoutTrainee: () => void;
-  loginTraineeDirect: (traineeId: string) => void;
-  loginAsCoach: () => void;
-  verifyCoachCredentials: (username: string, pin: string) => boolean;
-  
-  // Actions
-  addTrainee: (newTrainee: Partial<TraineeProfile>) => void;
-  deleteTrainee: (traineeId: string) => void;
-  updateTraineeCredentials: (traineeId: string, username: string, accessPin: string, fullName?: string) => void;
-  updateTraineeMacros: (traineeId: string, newMacros: MacroGoals) => void;
-  updateTraineeProgram: (traineeId: string, newProgram: WorkoutProgram) => void;
+  addTrainee: (trainee: Partial<TraineeProfile>) => void;
   updateTraineeProfile: (traineeId: string, updates: Partial<TraineeProfile>) => void;
+  updateTraineeCredentials: (traineeId: string, username: string, accessPin: string, fullName?: string) => void;
+  deleteTrainee: (traineeId: string) => void;
+  updateTraineeProgram: (traineeId: string, program: WorkoutProgram) => void;
+  updateTraineeMacros: (traineeId: string, macros: MacroGoals) => void;
   completeExerciseSet: (
     traineeId: string,
     dayId: string,
@@ -61,11 +63,16 @@ interface FitnessContextType {
   updateDailyHabits: (traineeId: string, updates: Partial<DailyHabitLog>) => void;
   submitWeeklyCheckIn: (traineeId: string, data: Omit<WeeklyCheckIn, 'id' | 'traineeId' | 'status'>) => void;
   reviewCheckIn: (checkInId: string, feedbackText: string, adjustmentNote?: string) => void;
+  messages: ChatMessage[];
   sendMessage: (traineeId: string, text: string, isAudio?: boolean, audioDuration?: string) => void;
   resetDemoData: () => void;
+  coachInfo: typeof COACH_INFO;
+  updateCoachInfo: (info: Partial<typeof COACH_INFO>) => void;
   appIcon: string;
   updateAppIcon: (base64OrUrl: string) => Promise<{ success: boolean; message?: string }>;
   resetAppIcon: () => void;
+  exerciseCatalog: MasterExercise[];
+  addCustomExercise: (exercise: MasterExercise) => void;
   toastCheer: { id: number; message: string; type: 'individual' | 'complete' } | null;
   triggerCheer: (message?: string) => void;
   triggerFullCompletion: (taskName: string) => void;
@@ -76,9 +83,14 @@ interface FitnessContextType {
   swappedMeals: Array<{ id: string; traineeId: string; date: string; original: string; replacement: string; reason?: string }>;
   logMealSwap: (traineeId: string, original: string, replacement: string, reason?: string) => void;
   registerBackHandler: (handler: () => boolean) => () => void;
+  exerciseWeightLogs: ExerciseWeightLog[];
+  logExerciseWeight: (traineeId: string, exerciseId: string, exerciseName: string, weightKg: number, reps: number, setNumber: number) => void;
+  getExerciseWeightHistory: (traineeId: string, exerciseId: string) => ExerciseWeightLog[];
 }
 
 const STORAGE_KEY_TRAINEES = 'modarribi_trainees_v3';
+const STORAGE_KEY_DELETED_TRAINEES = 'aq_deleted_trainee_ids_v2';
+const STORAGE_KEY_WEIGHT_LOGS = 'aq_exercise_weight_logs_v1';
 const STORAGE_KEY_MESSAGES = 'modarribi_messages_v1';
 const STORAGE_KEY_ROLE = 'modarribi_role_v1';
 const STORAGE_KEY_ACTIVE_TRAINEE = 'modarribi_active_trainee_v1';
@@ -148,64 +160,116 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const [trainees, setTrainees] = useState<TraineeProfile[]>(() => {
     try {
+      const deletedRaw = localStorage.getItem(STORAGE_KEY_DELETED_TRAINEES);
+      const deletedIds = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+
       const saved = localStorage.getItem(STORAGE_KEY_TRAINEES);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
           // Always ensure Youssef Gamal and Mohamed Qasim match their specific plans and credentials
-          const updatedParsed = parsed.map((t: any) => {
-            if (t.fullName === 'يوسف جمال' || t.id === 'trainee-4') {
-              return {
-                ...t,
-                program: PROGRAM_YOUSSEF_GAMAL,
-                customDietPlan: DIET_PLAN_YOUSSEF_GAMAL,
-                username: t.username || 'youssef_gamal',
-                accessPin: t.accessPin || '123456',
-                macroGoals: {
-                  ...t.macroGoals,
-                  calories: 2375,
-                  proteinGrams: 183,
-                  carbsGrams: 266,
-                  fatsGrams: 69
-                }
-              };
-            }
-            if (t.fullName === 'محمد قاسم' || t.id === 'trainee-5') {
-              return {
-                ...t,
-                program: PROGRAM_MOHAMED_QASIM,
-                customDietPlan: DIET_PLAN_MOHAMED_QASIM,
-                username: t.username || 'mohamed_qasim',
-                accessPin: t.accessPin || '789012'
-              };
-            }
-            if (t.id === 'trainee-1' && !t.username) t.username = 'ahmed_mansouri';
-            if (t.id === 'trainee-1' && !t.accessPin) t.accessPin = '112233';
-            if (t.id === 'trainee-2' && !t.username) t.username = 'sara_otaibi';
-            if (t.id === 'trainee-2' && !t.accessPin) t.accessPin = '445566';
-            if (t.id === 'trainee-3' && !t.username) t.username = 'omar_harbi';
-            if (t.id === 'trainee-3' && !t.accessPin) t.accessPin = '778899';
-            return t;
-          });
+          const updatedParsed = parsed
+            .filter((t: any) => !deletedIds.has(t.id))
+            .map((t: any) => {
+              if (t.fullName === 'يوسف جمال' || t.id === 'trainee-4') {
+                return {
+                  ...t,
+                  program: PROGRAM_YOUSSEF_GAMAL,
+                  customDietPlan: DIET_PLAN_YOUSSEF_GAMAL,
+                  username: t.username || 'youssef_gamal',
+                  accessPin: t.accessPin || '123456',
+                  macroGoals: {
+                    ...t.macroGoals,
+                    calories: 2375,
+                    proteinGrams: 183,
+                    carbsGrams: 266,
+                    fatsGrams: 69
+                  }
+                };
+              }
+              if (t.fullName === 'محمد قاسم' || t.id === 'trainee-5') {
+                return {
+                  ...t,
+                  program: PROGRAM_MOHAMED_QASIM,
+                  customDietPlan: DIET_PLAN_MOHAMED_QASIM,
+                  username: t.username || 'mohamed_qasim',
+                  accessPin: t.accessPin || '789012'
+                };
+              }
+              return t;
+            });
 
-          const existingIds = new Set(updatedParsed.map((p: any) => p.id));
-          const hasMohamed = updatedParsed.some((p: any) => p.fullName === 'محمد قاسم' || p.id === 'trainee-5');
-          const hasYoussef = updatedParsed.some((p: any) => p.fullName === 'يوسف جمال' || p.id === 'trainee-4');
-          
-          const missingInitials = INITIAL_TRAINEES.filter(
-            t => !existingIds.has(t.id) && (t.id !== 'trainee-5' || !hasMohamed) && (t.id !== 'trainee-4' || !hasYoussef)
-          );
-          if (missingInitials.length > 0) {
-            return [...updatedParsed, ...missingInitials];
-          }
           return updatedParsed;
         }
       }
+      return INITIAL_TRAINEES.filter(t => !deletedIds.has(t.id));
     } catch {
       // fallback
     }
     return INITIAL_TRAINEES;
   });
+
+  // Persistent Exercise Weight Logs (Request 16)
+  const [exerciseWeightLogs, setExerciseWeightLogs] = useState<ExerciseWeightLog[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_WEIGHT_LOGS);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [
+      {
+        id: 'init-w1',
+        traineeId: 'trainee-4',
+        exerciseId: 'bb-1',
+        exerciseName: 'Barbell Flat Bench Press',
+        date: '10 أكتوبر 2026',
+        weightKg: 85,
+        reps: 10,
+        setNumber: 1
+      },
+      {
+        id: 'init-w2',
+        traineeId: 'trainee-4',
+        exerciseId: 'bb-1',
+        exerciseName: 'Barbell Flat Bench Press',
+        date: '12 أكتوبر 2026',
+        weightKg: 87.5,
+        reps: 8,
+        setNumber: 1
+      }
+    ];
+  });
+
+  const logExerciseWeight = useCallback((
+    traineeId: string,
+    exerciseId: string,
+    exerciseName: string,
+    weightKg: number,
+    reps: number,
+    setNumber: number
+  ) => {
+    if (!weightKg || weightKg <= 0) return;
+    const newEntry: ExerciseWeightLog = {
+      id: `wlog-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      traineeId,
+      exerciseId,
+      exerciseName,
+      date: new Date().toLocaleDateString('ar-EG', { month: 'short', day: 'numeric', year: 'numeric' }),
+      weightKg,
+      reps: reps || 0,
+      setNumber
+    };
+    setExerciseWeightLogs(prev => {
+      const updated = [newEntry, ...prev];
+      try {
+        localStorage.setItem(STORAGE_KEY_WEIGHT_LOGS, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  }, []);
+
+  const getExerciseWeightHistory = useCallback((traineeId: string, exerciseId: string) => {
+    return exerciseWeightLogs.filter(l => l.traineeId === traineeId && l.exerciseId === exerciseId);
+  }, [exerciseWeightLogs]);
 
   // Deep linking and direct URL parameter handling
   useEffect(() => {
@@ -500,13 +564,19 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const remaining = prev.filter(t => t.id !== traineeId);
       try {
         localStorage.setItem(STORAGE_KEY_TRAINEES, JSON.stringify(remaining));
+        const deletedRaw = localStorage.getItem(STORAGE_KEY_DELETED_TRAINEES);
+        const deletedIds: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
+        if (!deletedIds.includes(traineeId)) {
+          deletedIds.push(traineeId);
+          localStorage.setItem(STORAGE_KEY_DELETED_TRAINEES, JSON.stringify(deletedIds));
+        }
       } catch {}
       if (currentTraineeId === traineeId && remaining.length > 0) {
         setCurrentTraineeId(remaining[0].id);
       }
       return remaining;
     });
-    triggerCheer('تم حذف المتدرب بنجاح');
+    triggerCheer('تم حذف المتدرب نهائياً');
   };
 
   const updateTraineeCredentials = (traineeId: string, username: string, accessPin: string, fullName?: string) => {
@@ -530,7 +600,16 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const cleanPin = inputPin.trim();
     const cUser = (coachInfo.username || 'coach').trim().toLowerCase();
     const cPin = (coachInfo.accessPin || '123456').trim();
-    const isCoachUser = cleanUser === cUser || cleanUser === 'coach' || cleanUser === 'abdullah' || cleanUser === 'admin' || cleanUser === '01068298126' || cleanUser === 'كوتش عبدالله';
+    const isCoachUser = 
+      cleanUser === cUser || 
+      cleanUser === 'coach' || 
+      cleanUser === 'abdullah' || 
+      cleanUser === 'admin' || 
+      cleanUser === '01068298126' || 
+      cleanUser === 'كوتش' ||
+      cleanUser === 'كوتش عبدالله' ||
+      cleanUser === 'عبدالله قاسم' ||
+      cleanUser === 'كوتش عبدالله قاسم';
     const isCoachPin = cleanPin === cPin || cleanPin === '123456';
     return isCoachUser && isCoachPin;
   }, [coachInfo]);
@@ -650,6 +729,10 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 completed: true,
               };
             });
+            // Automatically log to persistent weight history (Request 16)
+            if (weight > 0) {
+              logExerciseWeight(traineeId, exerciseId, ex.nameAr || ex.nameEn, weight, reps, setNumber);
+            }
             return { ...ex, sets: updatedSets };
           });
           return { ...d, exercises: updatedExercises };
@@ -966,6 +1049,9 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
         swappedMeals,
         logMealSwap,
         registerBackHandler,
+        exerciseWeightLogs,
+        logExerciseWeight,
+        getExerciseWeightHistory,
       }}
     >
       {children}

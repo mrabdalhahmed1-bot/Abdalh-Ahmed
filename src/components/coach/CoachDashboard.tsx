@@ -9,6 +9,7 @@ import { CoachProfileModal } from './CoachProfileModal';
 import { WeeklyCheckInAlerts } from './WeeklyCheckInAlerts';
 import { CoachSideSystemDrawer } from './CoachSideSystemDrawer';
 import { AddExerciseModal } from './AddExerciseModal';
+import { resolveExerciseVideo } from '../../utils/exerciseVideoMap';
 import { 
   Users, 
   ClipboardCheck, 
@@ -38,12 +39,19 @@ import {
   RotateCw,
   Activity,
   Zap,
-  Key,
-  Copy,
-  Trash2,
-  FileArchive,
   Download,
-  FolderDown
+  FolderDown,
+  FileArchive,
+  Copy,
+  ExternalLink,
+  Trash2,
+  Lock,
+  KeyRound,
+  Eye,
+  EyeOff,
+  Video,
+  Play,
+  X
 } from 'lucide-react';
 
 interface CoachDashboardProps {
@@ -83,6 +91,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({
   const [showCoachProfileModal, setShowCoachProfileModal] = useState(false);
   const [isSideSystemDrawerOpen, setIsSideSystemDrawerOpen] = useState(false);
   const [isAddExerciseModalOpen, setIsAddExerciseModalOpen] = useState(false);
+  const [selectedExerciseForVideoModal, setSelectedExerciseForVideoModal] = useState<any | null>(null);
   const [exerciseFilterCategory, setExerciseFilterCategory] = useState<string>('all');
   const [exerciseFilterSearch, setExerciseFilterSearch] = useState<string>('');
   const [activeSection, setActiveSection] = useState<'trainees' | 'pendingReviews' | 'exercises' | 'calculator' | 'reports'>('trainees');
@@ -153,22 +162,39 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({
     t.checkIns.filter(c => c.status === 'pending').map(c => ({ checkIn: c, trainee: t }))
   );
 
+  // Helper to normalize Arabic characters for robust search (Request 11)
+  const normalizeArabic = (str: string) => {
+    return (str || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[أإآ]/g, 'ا')
+      .replace(/ة/g, 'ه')
+      .replace(/ى/g, 'ي')
+      .replace(/[\u064B-\u065F]/g, '');
+  };
+
   // Trainees who have NOT submitted their weekly report yet
   const traineesMissingCheckIn = trainees.filter(isTraineeMissingCheckIn);
 
+  // Request 11: Search strictly by trainee name and username, ignoring status filters when query exists
   const filteredTrainees = trainees.filter(t => {
-    const matchesSearch = t.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          t.goalTitle.toLowerCase().includes(searchQuery.toLowerCase());
+    const q = normalizeArabic(searchQuery);
+    if (q.length > 0) {
+      const nameMatch = normalizeArabic(t.fullName).includes(q);
+      const userMatch = t.username ? normalizeArabic(t.username).includes(q) : false;
+      return nameMatch || userMatch;
+    }
+
     if (statusFilter === 'pending') {
-      return matchesSearch && t.status === 'pending_checkin';
+      return t.status === 'pending_checkin';
     }
     if (statusFilter === 'missing') {
-      return matchesSearch && isTraineeMissingCheckIn(t);
+      return isTraineeMissingCheckIn(t);
     }
     if (statusFilter === 'active') {
-      return matchesSearch && t.status === 'active';
+      return t.status === 'active';
     }
-    return matchesSearch;
+    return true;
   });
 
   const handleOpenWhatsApp = (trainee: TraineeProfile) => {
@@ -305,7 +331,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({
                 setSearchQuery(e.target.value);
                 if (activeSection !== 'trainees') setActiveSection('trainees');
               }}
-              placeholder="بحث باسم المتدرب أو الهدف (أحمد، سارة، تنشيف، تضخيم)..."
+              placeholder="بحث باسم المتدرب (أحمد، سارة، عمر، يوسف، محمد)..."
               className="w-full bg-neutral-900 border border-neutral-750 focus:border-emerald-500 rounded-xl pr-10 pl-9 py-2 text-xs text-white placeholder-neutral-500 outline-none transition-all shadow-inner"
             />
             {searchQuery && (
@@ -376,102 +402,6 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({
                 {filteredTrainees.length} متدرب مطابق
               </span>
             )}
-          </div>
-        </div>
-      </div>
-
-      {/* Bolt.new & Project ZIP Packages Section (طلب المستخدم: حزمة خفيفة أقل من 10 ميجا لربطها بـ Bolt.new وخالية من المجلدات الثقيلة) */}
-      <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 md:p-5 shadow-lg space-y-4">
-        {/* Bolt.new Card */}
-        <div className="bg-gradient-to-r from-amber-500/10 via-neutral-900 to-amber-500/5 border border-amber-500/30 rounded-xl p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-          <div className="flex items-start md:items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/40">
-              <Zap className="w-6 h-6" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-sm font-black text-white">حزمة الربط السريع مع Bolt.new (كود خفيف 4.5 MB) ⚡</h3>
-                <span className="px-2 py-0.5 rounded-full bg-amber-500 text-neutral-950 text-[10px] font-black">
-                  جاهز لـ Bolt.new ⚡
-                </span>
-                <span className="px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-300 border border-neutral-700 text-[10px] font-bold">
-                  أقل من 5 ميجا (خالٍ من node_modules و .git و dist)
-                </span>
-              </div>
-              <p className="text-xs text-neutral-300 mt-1 leading-relaxed">
-                حزمة مخصصة لموقع <span className="text-amber-400 font-bold">Bolt.new</span> و <span className="text-white font-bold">GitHub / Vercel</span>: خفيفة جداً، جاهزة للسحب والإفلات (Drag & Drop) في <span className="text-white font-mono">bolt.new</span> للتشغيل المباشر الفوري.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
-            <a
-              href="/downloads/bolt-aq-coaching.zip"
-              download="bolt-aq-coaching.zip"
-              onClick={() => triggerCheer('جارٍ تنزيل حزمة Bolt.new الخفيفة (4.5 MB) ⚡')}
-              className="flex-1 md:flex-none px-4 py-2.5 bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-neutral-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-amber-500/20 cursor-pointer"
-              title="تنزيل حزمة المشروع النظيفة والخفيفة المخصصة لـ Bolt.new (4.5 ميجا)"
-            >
-              <Download className="w-4 h-4" />
-              <span>تحميل حزمة Bolt.new (4.5 MB) ⚡</span>
-            </a>
-
-            <button
-              type="button"
-              onClick={() => {
-                const boltUrl = `${getPublicBaseUrl()}/downloads/bolt-aq-coaching.zip`;
-                navigator.clipboard.writeText(boltUrl);
-                triggerCheer('تم نسخ الرابط المباشر لحزمة Bolt.new 📋');
-              }}
-              className="px-3.5 py-2.5 bg-neutral-800 hover:bg-neutral-700 border border-amber-500/40 text-amber-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1 transition-colors cursor-pointer"
-              title="نسخ الرابط المباشر لملف bolt-aq-coaching.zip"
-            >
-              <Copy className="w-3.5 h-3.5" />
-              <span>نسخ الرابط 📋</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Other Packages (dist.zip & Full ZIP) */}
-        <div className="pt-2 border-t border-neutral-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-xs text-neutral-400">
-          <div className="flex items-center gap-2">
-            <FileArchive className="w-4 h-4 text-cyan-400 shrink-0" />
-            <span>حزم إضافية متوفرة: <strong className="text-neutral-200">dist.zip</strong> للنشر المباشر على Vercel/Netlify، و <strong className="text-neutral-200">كود المشروع الكامل</strong>.</span>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            <a
-              href="/downloads/dist.zip"
-              download="dist.zip"
-              onClick={() => triggerCheer('جارٍ تنزيل ملفات الـ Build الجاهزة للنشر (dist.zip) 🚀')}
-              className="px-3 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 font-bold rounded-lg text-[11px] flex items-center gap-1 transition-colors"
-            >
-              <FolderDown className="w-3.5 h-3.5" />
-              <span>تنزيل dist.zip (3.6 MB)</span>
-            </a>
-
-            <a
-              href="/downloads/aq-coaching-project.zip"
-              download="aq-coaching-project.zip"
-              onClick={() => triggerCheer('جارٍ تنزيل كود المشروع الكامل 📦')}
-              className="px-3 py-1.5 bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 font-bold rounded-lg text-[11px] flex items-center gap-1 transition-colors"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>كود المشروع (4.5 MB)</span>
-            </a>
-
-            <button
-              type="button"
-              onClick={() => {
-                const distUrl = `${getPublicBaseUrl()}/downloads/dist.zip`;
-                navigator.clipboard.writeText(distUrl);
-                triggerCheer('تم نسخ رابط dist.zip 📋');
-              }}
-              className="px-2.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg text-[11px] border border-neutral-700"
-            >
-              <Copy className="w-3 h-3 inline ml-1" />
-              رابط dist
-            </button>
           </div>
         </div>
       </div>
@@ -595,90 +525,6 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({
           </span>
         </div>
 
-      </div>
-
-      {/* Direct Quick-Access Cards for Combined Adherence and Swapped Meals Reports */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Card 1: Combined Workout + Diet Adherence */}
-        <div 
-          onClick={() => {
-            setActiveSection('reports');
-            setActiveReportSubTab('adherence');
-          }}
-          className="bg-gradient-to-br from-emerald-950/70 via-neutral-900 to-neutral-900 border-2 border-emerald-500/40 hover:border-emerald-400 rounded-2xl p-4 sm:p-5 cursor-pointer shadow-lg transition-all group"
-        >
-          <div className="flex items-center justify-between mb-2.5">
-            <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <Activity className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest block">
-                  التقرير الموحد المطلوب 📊
-                </span>
-                <h4 className="text-sm sm:text-base font-black text-white">
-                  تقرير الالتزام بالتمارين + والدايت معاً
-                </h4>
-              </div>
-            </div>
-            <span className="text-xs font-bold text-emerald-400 bg-emerald-950 px-2.5 py-1 rounded-lg border border-emerald-800 shrink-0">
-              فتح التقرير ←
-            </span>
-          </div>
-          <p className="text-xs text-neutral-300 leading-relaxed mb-3">
-            شاشة موحدة تحسب للمدرب أسبوعياً نسبة إتمام حصص التمرين + نسبة مطابقة وجبات وسعرات الدايت لكل متدرب.
-          </p>
-          <div className="flex items-center gap-2 flex-wrap text-xs font-mono">
-            <span className="px-2 py-0.5 rounded-lg bg-neutral-950 text-emerald-400 border border-neutral-800 font-bold">
-              ✓ حصص التمارين الأسبوعية
-            </span>
-            <span className="px-2 py-0.5 rounded-lg bg-neutral-950 text-amber-400 border border-neutral-800 font-bold">
-              ✓ مطابقة سعرات وماكروز الوجبات
-            </span>
-          </div>
-        </div>
-
-        {/* Card 2: Swapped Meals & Calories */}
-        <div 
-          onClick={() => {
-            setActiveSection('reports');
-            setActiveReportSubTab('swaps');
-          }}
-          className="bg-gradient-to-br from-amber-950/60 via-neutral-900 to-neutral-900 border-2 border-amber-500/40 hover:border-amber-400 rounded-2xl p-4 sm:p-5 cursor-pointer shadow-lg transition-all group"
-        >
-          <div className="flex items-center justify-between mb-2.5">
-            <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <RotateCw className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest block">
-                  رصد السعرات والبدائل 🔄
-                </span>
-                <h4 className="text-sm sm:text-base font-black text-white">
-                  تقرير الوجبات المستبدلة والسعرات الإضافية
-                </h4>
-              </div>
-            </div>
-            <span className="text-xs font-bold text-amber-400 bg-amber-950 px-2.5 py-1 rounded-lg border border-amber-800 shrink-0">
-              سجل التبديل ←
-            </span>
-          </div>
-          <p className="text-xs text-neutral-300 leading-relaxed mb-3">
-            سجل مباشر لعدد المرات التي استبدل فيها المتدرب وجباته، أسباب التبديل، والأيام التي تجاوز فيها السعرات أو نقص عنها.
-          </p>
-          <div className="flex items-center gap-2 flex-wrap text-xs font-mono">
-            <span className="px-2 py-0.5 rounded-lg bg-neutral-950 text-white border border-neutral-800 font-bold">
-              {swappedMeals.length} أصناف مسجلة
-            </span>
-            {swapMessages.length > 0 && (
-              <span className="px-2 py-0.5 rounded-lg bg-amber-950 text-amber-300 border border-amber-800 font-bold flex items-center gap-1">
-                <Bell className="w-3 h-3 text-amber-400 animate-bounce" />
-                <span>{swapMessages.length} طلبات جديدة بالشات</span>
-              </span>
-            )}
-          </div>
-        </div>
       </div>
 
       {/* Weekly Check-In Follow-up Alert System (تنبيهات المتدربين الذين لم يرسلوا بياناتهم) */}
@@ -917,7 +763,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({
                     <div className="bg-neutral-950 p-2.5 rounded-xl border border-neutral-800/80 mb-3 space-y-2">
                       <div className="flex items-center justify-between text-[11px]">
                         <span className="text-neutral-400 flex items-center gap-1 font-medium">
-                          <Key className="w-3 h-3 text-amber-400" />
+                          <KeyRound className="w-3 h-3 text-amber-400" />
                           <span>المستخدم:</span>
                           <span className="font-mono text-white font-bold">{trainee.username || trainee.fullName.toLowerCase().replace(/\s+/g, '_')}</span>
                         </span>
@@ -1232,18 +1078,29 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({
                     { label: 'وزن جسم', color: 'text-neutral-400 bg-neutral-900 border-neutral-800' };
 
                   return (
-                    <div key={ex.id} className="bg-neutral-950 border border-neutral-800 rounded-xl p-4 flex gap-4 hover:border-neutral-750 transition-colors">
-                      <div className="w-24 h-24 rounded-lg overflow-hidden shrink-0 border border-neutral-800 bg-neutral-900">
+                    <div 
+                      key={ex.id} 
+                      onClick={() => setSelectedExerciseForVideoModal(ex)}
+                      className="bg-neutral-950 border border-neutral-800 hover:border-emerald-500/50 rounded-xl p-4 flex gap-4 transition-all cursor-pointer group relative overflow-hidden shadow-sm hover:shadow-lg"
+                    >
+                      <div className="w-24 h-24 rounded-lg overflow-hidden shrink-0 border border-neutral-800 bg-neutral-900 relative">
                         <img 
                           src={ex.thumbnailUrl} 
                           alt={ex.nameAr}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                           referrerPolicy="no-referrer"
                         />
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-80 group-hover:opacity-100 transition-opacity">
+                          <div className="w-8 h-8 rounded-full bg-emerald-500 text-neutral-950 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                            <Play className="w-4 h-4 fill-current ml-0.5" />
+                          </div>
+                        </div>
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
-                          <h4 className="text-sm font-bold text-white truncate">{ex.nameAr}</h4>
+                          <h4 className="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors truncate">
+                            {ex.nameAr}
+                          </h4>
                           <span className={`text-[10px] font-mono px-2 py-0.2 rounded border shrink-0 ${catBadge.color}`}>
                             {catBadge.label}
                           </span>
@@ -1252,13 +1109,27 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({
                           {ex.primaryMuscle} · {ex.equipment}
                         </span>
                         
-                        <div className="space-y-1">
+                        <div className="space-y-1 mb-2">
                           {ex.executionCues.slice(0, 2).map((cue, i) => (
                             <div key={i} className="text-[11px] text-neutral-400 flex items-center gap-1.5">
                               <span className="w-1 h-1 rounded-full bg-emerald-400 shrink-0" />
                               <span className="line-clamp-1">{cue}</span>
                             </div>
                           ))}
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedExerciseForVideoModal(ex);
+                            }}
+                            className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 cursor-pointer"
+                          >
+                            <Play className="w-3 h-3 fill-current" />
+                            <span>تشغيل فيديو التكنيك والأداء (HD) 🎥</span>
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -1905,6 +1776,84 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({
           </div>
         </div>
       )}
+
+      {/* Exercise Video Playback Modal for Library (Request 9) */}
+      {selectedExerciseForVideoModal && (() => {
+        const videoInfo = resolveExerciseVideo(selectedExerciseForVideoModal);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+            <div className="relative w-full max-w-xl bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden shadow-2xl">
+              <div className="flex items-center justify-between p-4 sm:p-5 border-b border-neutral-800 bg-neutral-950">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
+                    <Video className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-white">
+                      {selectedExerciseForVideoModal.nameAr}
+                    </h3>
+                    <span className="text-xs text-neutral-400 font-mono">
+                      {selectedExerciseForVideoModal.nameEn} · {selectedExerciseForVideoModal.equipment}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedExerciseForVideoModal(null)}
+                  className="w-8 h-8 rounded-full bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* YouTube IFrame Embed */}
+              <div className="relative w-full aspect-video bg-black">
+                <iframe
+                  src={`https://www.youtube-nocookie.com/embed/${videoInfo.ytId}?autoplay=1&mute=1&controls=1&loop=1&playlist=${videoInfo.ytId}&playsinline=1&rel=0&modestbranding=1`}
+                  title={`فيديو تكنيك ${selectedExerciseForVideoModal.nameAr}`}
+                  className="w-full h-full border-0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+
+              {/* Biomechanics and Form Cues */}
+              <div className="p-4 sm:p-5 bg-neutral-950/70 border-t border-neutral-800 space-y-3">
+                <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
+                  <Sparkles className="w-4 h-4" />
+                  <span>توجيهات الأداء الحركي والعزل العضلي (Biomechanics Cues):</span>
+                </div>
+                
+                <p className="text-xs text-neutral-300 leading-relaxed bg-neutral-900 p-3 rounded-xl border border-neutral-800">
+                  {videoInfo.formNotes}
+                </p>
+
+                {selectedExerciseForVideoModal.executionCues && (
+                  <div className="space-y-1 pt-1">
+                    {selectedExerciseForVideoModal.executionCues.map((cue: string, idx: number) => (
+                      <div key={idx} className="text-[11px] text-neutral-400 flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                        <span>{cue}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="p-3 bg-neutral-950 border-t border-neutral-800 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setSelectedExerciseForVideoModal(null)}
+                  className="px-4 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-white text-xs font-bold transition-colors cursor-pointer"
+                >
+                  إغلاق الفيديو
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );

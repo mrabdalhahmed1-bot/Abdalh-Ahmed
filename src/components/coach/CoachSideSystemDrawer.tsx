@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFitness } from '../../context/FitnessContext';
-import { TraineeProfile, WorkoutProgram, MacroGoals } from '../../types/fitness';
+import { TraineeProfile, WorkoutProgram, MacroGoals, WorkoutDay, WorkoutExercise } from '../../types/fitness';
 import { AddExerciseModal } from './AddExerciseModal';
 import { 
   X, 
@@ -8,18 +8,16 @@ import {
   Utensils, 
   Zap, 
   Sparkles, 
-  ChevronRight, 
   Check, 
   Layers, 
   Activity, 
   Flame, 
-  Heart, 
-  Shield, 
   Plus, 
-  Sliders, 
-  ArrowRight,
-  TrendingUp,
-  UserCheck
+  UserCheck,
+  Save,
+  Trash2,
+  Droplets,
+  Edit3
 } from 'lucide-react';
 
 interface CoachSideSystemDrawerProps {
@@ -35,31 +33,195 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
     trainees, 
     updateTraineeProgram, 
     updateTraineeMacros, 
+    updateTraineeProfile,
     exerciseCatalog,
     triggerCheer 
   } = useFitness();
 
-  // Active Hub Tab: 'programs' | 'diet' | 'fitness' | 'flexibility'
-  const [activeTab, setActiveTab] = useState<'programs' | 'diet' | 'fitness' | 'flexibility'>('programs');
+  // Active Tab: 'actual' (البرنامج الفعلي للمتدرب) | 'programs' | 'diet' | 'fitness' | 'flexibility'
+  const [activeTab, setActiveTab] = useState<'actual' | 'programs' | 'diet' | 'fitness' | 'flexibility'>('actual');
   
-  // Selected Trainee for applying changes
-  const [targetTraineeId, setTargetTraineeId] = useState<string>(trainees[0]?.id || '');
+  // Selected Trainee for displaying and applying changes
+  const [targetTraineeId, setTargetTraineeId] = useState<string>(trainees[0]?.id || 'trainee-4');
   const [appliedNotification, setAppliedNotification] = useState<string | null>(null);
 
   // Sub-modal for adding exercise to library
   const [isAddExerciseModalOpen, setIsAddExerciseModalOpen] = useState(false);
 
-  // Diet Calculator inside drawer
-  const [drawerWeight, setDrawerWeight] = useState(80);
-  const [drawerGoal, setDrawerGoal] = useState<'cut' | 'bulk' | 'recomp'>('cut');
+  // Local state for editing the target trainee's actual program manually (Request 2)
+  const targetTrainee = trainees.find(t => t.id === targetTraineeId) || trainees[0];
+  const [editableProgram, setEditableProgram] = useState<WorkoutProgram | null>(null);
+  const [editableMacros, setEditableMacros] = useState<MacroGoals>({
+    calories: 2200,
+    proteinGrams: 160,
+    carbsGrams: 230,
+    fatsGrams: 60,
+    waterLiters: 3.5,
+    fiberGrams: 30,
+    cardioMinutesPerWeek: 120,
+    cardioType: 'LISS',
+    stepGoal: 10000
+  });
+  const [editableWater, setEditableWater] = useState<number>(3.5);
+  const [selectedDayIdx, setSelectedDayIdx] = useState(0);
 
-  // Preview split
-  const [selectedSplitIndex, setSelectedSplitIndex] = useState(0);
+  // Editable protocols for warm-up, mobility, and cardio (Request 2 & 3)
+  const [editableWarmupText, setEditableWarmupText] = useState<string>(
+    'روتين الإحماء الديناميكي: تدوير الذراعين، دوران الجذع، إحماء الأكتاف، وتهيئة مفاصل الركبة والحوض (5-7 دقائق).'
+  );
+  const [editableMobilityText, setEditableMobilityText] = useState<string>(
+    'روتين الإطالات الحركية: تدوير الذراعين، إطالة الصدر على الجدار، ومرونة المعصم (15-30 ثانية لكل جانب).'
+  );
+  const [editableCardioText, setEditableCardioText] = useState<string>(
+    'مشي مائل على المشاية (Zone 2) لمدة 20 دقيقة، مع دراجة ثابتة بمقاومة معتدلة لتعزيز الحرق.'
+  );
+  const [editableStepGoal, setEditableStepGoal] = useState<number>(10000);
+
+  // Synchronize local editable state when target trainee changes or drawer opens
+  useEffect(() => {
+    if (targetTrainee) {
+      if (targetTrainee.program) {
+        setEditableProgram(JSON.parse(JSON.stringify(targetTrainee.program)));
+      }
+      if (targetTrainee.macroGoals) {
+        setEditableMacros({ ...targetTrainee.macroGoals });
+        setEditableWater(targetTrainee.macroGoals.waterLiters || 3.5);
+        setEditableStepGoal(targetTrainee.macroGoals.stepGoal || 10000);
+      }
+      try {
+        const savedProto = localStorage.getItem(`aq_protocols_${targetTrainee.id}`);
+        if (savedProto) {
+          const parsedProto = JSON.parse(savedProto);
+          setEditableWarmupText(parsedProto.warmup || 'روتين الإحماء الديناميكي: تدوير الذراعين، دوران الجذع، إحماء الأكتاف، وتهيئة مفاصل الركبة والحوض (5-7 دقائق).');
+          setEditableMobilityText(parsedProto.mobility || 'روتين الإطالات الحركية: تدوير الذراعين، إطالة الصدر على الجدار، ومرونة المعصم (15-30 ثانية لكل جانب).');
+          setEditableCardioText(parsedProto.cardio || 'مشي مائل على المشاية (Zone 2) لمدة 20 دقيقة، مع دراجة ثابتة بمقاومة معتدلة لتعزيز الحرق.');
+        } else {
+          setEditableWarmupText('روتين الإحماء الديناميكي: تدوير الذراعين، دوران الجذع، إحماء الأكتاف، وتهيئة مفاصل الركبة والحوض (5-7 دقائق).');
+          setEditableMobilityText('روتين الإطالات الحركية: تدوير الذراعين، إطالة الصدر على الجدار، ومرونة المعصم (15-30 ثانية لكل جانب).');
+          setEditableCardioText('مشي مائل على المشاية (Zone 2) لمدة 20 دقيقة، مع دراجة ثابتة بمقاومة معتدلة لتعزيز الحرق.');
+        }
+      } catch {}
+    }
+  }, [targetTraineeId, targetTrainee, isOpen]);
 
   const showNotification = (msg: string) => {
     setAppliedNotification(msg);
     triggerCheer(msg);
-    setTimeout(() => setAppliedNotification(null), 3000);
+    setTimeout(() => setAppliedNotification(null), 3500);
+  };
+
+  // Save manual modifications to the trainee's actual workout program
+  const handleSaveActualProgram = () => {
+    if (!editableProgram || !targetTrainee) return;
+    updateTraineeProgram(targetTrainee.id, editableProgram);
+    showNotification(`تم حفظ التعديلات اليدوية لبرنامج تمارين ${targetTrainee.fullName} بنجاح ✅`);
+  };
+
+  // Save manual modifications to nutrition and water
+  const handleSaveActualMacros = () => {
+    if (!targetTrainee) return;
+    const updated: MacroGoals = {
+      ...editableMacros,
+      waterLiters: editableWater
+    };
+    updateTraineeMacros(targetTrainee.id, updated);
+    showNotification(`تم حفظ أهداف التغذية والماء لـ ${targetTrainee.fullName} بنجاح 🥗💧`);
+  };
+
+  // Save manual modifications to warm-up, mobility, and cardio protocols
+  const handleSaveProtocols = () => {
+    if (!targetTrainee) return;
+    try {
+      localStorage.setItem(`aq_protocols_${targetTrainee.id}`, JSON.stringify({
+        warmup: editableWarmupText,
+        mobility: editableMobilityText,
+        cardio: editableCardioText,
+        stepGoal: editableStepGoal
+      }));
+    } catch {}
+    if (editableStepGoal !== targetTrainee.macroGoals?.stepGoal) {
+      updateTraineeMacros(targetTrainee.id, {
+        ...editableMacros,
+        waterLiters: editableWater,
+        stepGoal: editableStepGoal
+      });
+    }
+    showNotification(`تم حفظ بروتوكولات الإحماء والمرونة واللياقة لـ ${targetTrainee.fullName} بنجاح ✅`);
+  };
+
+  // Helper to modify an exercise in the active program
+  const handleUpdateExercise = (
+    dayIndex: number, 
+    exIndex: number, 
+    field: 'nameAr' | 'setsCount' | 'reps' | 'targetWeight', 
+    val: any
+  ) => {
+    if (!editableProgram) return;
+    const updated = { ...editableProgram };
+    const day = updated.days[dayIndex];
+    if (!day || !day.exercises[exIndex]) return;
+
+    const ex = day.exercises[exIndex];
+    if (field === 'nameAr') {
+      ex.nameAr = val;
+    } else if (field === 'setsCount') {
+      const count = Math.max(1, Math.min(8, Number(val) || 3));
+      // Adjust sets array length
+      const currentSets = ex.sets || [];
+      if (currentSets.length < count) {
+        for (let i = currentSets.length; i < count; i++) {
+          currentSets.push({
+            setNumber: i + 1,
+            targetReps: currentSets[0]?.targetReps || '10',
+            actualReps: currentSets[0]?.actualReps || 10,
+            actualWeight: currentSets[0]?.actualWeight || 50,
+            restSeconds: currentSets[0]?.restSeconds || 90,
+            completed: false
+          });
+        }
+      } else if (currentSets.length > count) {
+        ex.sets = currentSets.slice(0, count);
+      }
+    } else if (field === 'reps') {
+      const repsNum = Number(val) || 10;
+      ex.sets = ex.sets.map(s => ({ ...s, targetReps: String(repsNum), actualReps: repsNum }));
+    } else if (field === 'targetWeight') {
+      const wNum = Number(val) || 0;
+      ex.sets = ex.sets.map(s => ({ ...s, actualWeight: wNum }));
+    }
+
+    setEditableProgram(updated);
+  };
+
+  // Remove exercise from day
+  const handleRemoveExercise = (dayIndex: number, exIndex: number) => {
+    if (!editableProgram) return;
+    const updated = { ...editableProgram };
+    updated.days[dayIndex].exercises.splice(exIndex, 1);
+    setEditableProgram(updated);
+  };
+
+  // Add exercise from library to day
+  const handleAddExerciseToDay = (dayIndex: number) => {
+    if (!editableProgram || exerciseCatalog.length === 0) return;
+    const base = exerciseCatalog[0];
+    const newEx: WorkoutExercise = {
+      id: `ex-custom-${Date.now()}`,
+      nameAr: base.nameAr,
+      nameEn: base.nameEn,
+      primaryMuscle: base.primaryMuscle,
+      equipment: base.equipment,
+      thumbnailUrl: base.thumbnailUrl,
+      executionCues: base.executionCues,
+      sets: [
+        { setNumber: 1, targetReps: '10', actualReps: 10, actualWeight: 40, restSeconds: 90, completed: false },
+        { setNumber: 2, targetReps: '10', actualReps: 10, actualWeight: 40, restSeconds: 90, completed: false },
+        { setNumber: 3, targetReps: '10', actualReps: 10, actualWeight: 40, restSeconds: 90, completed: false },
+      ]
+    };
+    const updated = { ...editableProgram };
+    updated.days[dayIndex].exercises.push(newEx);
+    setEditableProgram(updated);
   };
 
   // 1. Program Templates Hub
@@ -105,18 +267,6 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
         { dayName: 'اليوم 3: أرجل ثقيلة وبطن (Legs & Abs)', focusArea: 'سكوات، هاك سكوات، هامسترينغ', exercisesCount: 5 },
         { dayName: 'اليوم 4: تكرار صدر وظهر بمقاومة الكابلات', focusArea: 'كابلات وأجهزة عزل متقدم', exercisesCount: 5 }
       ]
-    },
-    {
-      title: 'نظام 4-Day Bodybuilding Split (عضلة أساسية يومياً)',
-      description: 'عزل كامل لكل مجموعة عضلية مع كثافة عالية وسرعة استشفاء فائقة.',
-      splitType: 'custom',
-      daysPerWeek: 4,
-      days: [
-        { dayName: 'اليوم 1: صدر وترايسبس (Chest & Triceps)', focusArea: 'بنش بار، دمبل عالي، فراشة، تراي كيبل', exercisesCount: 5 },
-        { dayName: 'اليوم 2: ظهر وبايسبس (Back & Biceps)', focusArea: 'سحب بار، سحب كيبل، ديدلفت، هامر كيرل', exercisesCount: 5 },
-        { dayName: 'اليوم 3: أكتاف وترابيز وبطن (Shoulders & Traps)', focusArea: 'ضغط دمبل، رفرفة جانبي وخلفي، شروجز', exercisesCount: 5 },
-        { dayName: 'اليوم 4: أرجل كاملة وسمانة (Complete Legs)', focusArea: 'سكوات، مكبس أرجل، فرد وثني', exercisesCount: 5 }
-      ]
     }
   ];
 
@@ -130,8 +280,7 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
       carbsRatio: '25%',
       fatsRatio: '20%',
       desc: 'حرق الدهون العنيدة مع أقصى حماية للكتلة العضلية بتكثيف البروتين الصافي.',
-      waterLiters: 4.0,
-      baseCaloriesMultiplier: 22 // weight * 22 approx
+      waterLiters: 4.0
     },
     {
       id: 'carb-cycle',
@@ -141,8 +290,7 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
       carbsRatio: 'أيام عالية / منخفضة',
       fatsRatio: '25%',
       desc: 'أيام تمارين الأرجل والظهر كارب عالي، وأيام الراحة كارب منخفض لتسريع الأيض.',
-      waterLiters: 3.8,
-      baseCaloriesMultiplier: 25
+      waterLiters: 3.8
     },
     {
       id: 'clean-bulk',
@@ -152,221 +300,119 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
       carbsRatio: '50%',
       fatsRatio: '25%',
       desc: 'بناء ألياف عضلية صافية وطاقة انفجارية بالأوزان دون اكتساب دهون زائدة.',
-      waterLiters: 3.5,
-      baseCaloriesMultiplier: 32
-    },
-    {
-      id: 'recomp',
-      title: 'نظام إعادة التشكيل العضلي (Body Recomposition)',
-      deficit: 'سعرات المحافظة المتوازنة',
-      proteinPerKg: '2.2g',
-      carbsRatio: '40%',
-      fatsRatio: '25%',
-      desc: 'حرق دهون خفيف وبناء متزامن للمبتدئين أو العائدين من انقطاع.',
-      waterLiters: 3.5,
-      baseCaloriesMultiplier: 28
+      waterLiters: 3.5
     }
   ];
 
-  // 3. Fitness & Cardio Hub
+  // 3. Fitness & Cardio Protocols
   const FITNESS_CARDIO_PROTOCOLS = [
     {
-      id: 'liss-incline',
-      title: 'بروتوكول الكارديو الثابت المنخفض (LISS Incline Walk)',
-      targetMinutes: 150,
-      protocol: '30 دقيقة، 5 أيام أسبوعياً، سرعة 4.8 إلى 5.2، انحدار 10% إلى 12%',
-      hrZone: 'منطقة حرق الدهون (Zone 2: 120-135 نبضة/دقيقة)',
-      stepsTarget: 10000,
-      desc: 'لا يهدم العضلات، يحافظ على استشفاء الساقين، ويحرق الدهون بكفاءة عالية.'
-    },
-    {
       id: 'hiit-tabata',
-      title: 'بروتوكول التدريب المتقطع عالي الكثافة (HIIT / Tabata)',
-      targetMinutes: 60,
-      protocol: '15-20 دقيقة، 3 مرات أسبوعياً: سبرنت 30 ثانية بأقصى سرعة / راحة 60 ثانية مشي',
-      hrZone: 'منطقة التحمل الأكسجيني القصوى (Zone 4/5: 160+ نبضة/دقيقة)',
-      stepsTarget: 8000,
-      desc: 'يرفع معدل الأيض لساعات بعد التمرين (EPOC Afterburn Effect).'
-    },
-    {
-      id: 'neat-steps',
-      title: 'بروتوكول النشاط غير الرياضي اليومي (NEAT Step Protocol)',
-      targetMinutes: 90,
-      protocol: 'مشي 12,000 خطوة يومياً موزع على 3 جولات بعد الوجبات الرئيسية (10-15 دقيقة كل جولة)',
-      hrZone: 'النشاط الحركي الطبيعي (Zone 1)',
-      stepsTarget: 12000,
-      desc: 'يحسن حساسية الإنسولين ويمنع خمول الجسم دون أي إجهاد للجهاز العصبي.'
-    },
-    {
-      id: 'fasted-cardio',
-      title: 'بروتوكول كارديو الصباح على الريق (Fasted Morning LISS)',
-      targetMinutes: 120,
-      protocol: '25 دقيقة مشي خفيف صباحاً بعد شرب 500 مل ماء وكوب قهوة سوداء',
-      hrZone: 'منطقة 115-125 نبضة/دقيقة',
+      title: 'بروتوكول HIIT و Tabata الحارق',
+      targetMinutes: '45-60',
+      protocol: '20 ثانية سرعة قصوى يتبعها 40 ثانية مشي بطيء لـ 15 دقيقة',
+      hrZone: 'المنطقة 4-5 (Zone 4-5: 80-90% نبض)',
       stepsTarget: 10000,
-      desc: 'تنشيط الدورة الدموية واستغلال مخازن الجليكوجين المنخفضة لحرق الدهون.'
+      desc: 'حرق دهون مكثف وتفعيل تأثير ما بعد الحرق (EPOC) لـ 24 ساعة.'
+    },
+    {
+      id: 'liss-zone2',
+      title: 'بروتوكول LISS مشي مائل (Zone 2 Cardio)',
+      targetMinutes: '120-150',
+      protocol: 'مشي على مشاية بزاوية انحدار 8-12 وسرعة 4.5 كم/س لـ 30 دقيقة',
+      hrZone: 'المنطقة 2 (Zone 2: 60-70% نبض)',
+      stepsTarget: 12000,
+      desc: 'المحافظة على المفاصل وأقصى استهلاك للأحماض الدهنية دون إجهاد عصبي.'
     }
   ];
 
-  // 4. Flexibility & Mobility Hub
+  // 4. Mobility Protocols
   const MOBILITY_ROUTINES = [
     {
-      id: 'shoulder-rotator',
-      title: 'روتين تحرير وإحماء مفاصل الكتف والصدر (Shoulder & Rotator Cuff)',
-      duration: '8 دقائق قبل تمارين الدفع والعلوي',
-      exercises: [
-        'Band Dislocates (دوران حبل المقاومة حول الكتف 15 تكرار)',
-        'External Rotations (تدوير مفصل الكوع للخارج بالكيبل الخفيف 15 تكرار)',
-        'Wall Slides (انزلاق الذراعين على الجدار لتفعيل الترابيز السفلي 12 تكرار)',
-        'Scapular Push-ups (ضغط لوحي الكتف بدون ثني الكوع 12 تكرار)'
-      ],
-      desc: 'حماية كاملة من إصابات أوتار الكتف (Rotator Cuff Impingement) وزيادة ثبات البنش برس.'
+      id: 'shoulder-thoracic',
+      title: 'روتين تحرير الصدر والكتف (Shoulder & Thoracic)',
+      duration: '7-10 دقائق',
+      exercises: ['تدوير الذراعين والأكتاف Arm Circles', 'إطالة الصدر على الجدار 30ث', 'Cat-Cow Rotations'],
+      desc: 'تحسين المدى الحركي في تمرين البنش بريس والضغط العالي وحماية أوتار الكتف.'
     },
     {
-      id: 'hip-opener',
-      title: 'روتين مرونة الحوض والورك قبل السكوات (Hip Opener & Mobility)',
-      duration: '10 دقائق قبل تمارين الأرجل',
-      exercises: [
-        '90/90 Hip Stretch (إطالة الحوض بزاوية 90 درجة بالتبادل)',
-        'Deep Goblet Squat Pry (جلسة قرفصاء عميقة مع فتح الركبتين بالكوعين 45 ثانية)',
-        'Glute Bridges (تفعيل عضلات المؤخرة بالأرض 15 تكرار)',
-        'Ankle Dorsiflexion (مرونة مفصل الكاحل باتجاه الجدار لتسهيل النزول العميق)'
-      ],
-      desc: 'يضمن نزول السكوات الموازي أو العميق بدون تقوس أسفل الظهر (Butt Wink).'
-    },
-    {
-      id: 't-spine-spine',
-      title: 'روتين مرونة العمود الفقري والصدر (Thoracic Spine Decompression)',
-      duration: '6 دقائق قبل أي حصة تدريبية',
-      exercises: [
-        'Cat-Cow Stretch (إطالة القطة والبقرة لتحرير فقرات الظهر 12 دورة)',
-        'Thread the Needle (تمرير الذراع لأسفل الصدر لتدوير القفص الصدري 10 تكرار لكل جهة)',
-        'Foam Roller Upper Back Extension (تمدد أعلى الظهر فوق أسطوانة الفوم)'
-      ],
-      desc: 'علاج انحناء الأكتاف المكتبي وتحسين التنفس والتوازن في تمارين الرفعات الحرة.'
-    },
-    {
-      id: 'post-stretch',
-      title: 'روتين إطالات الاستشفاء الثابتة بعد انتهاء التمرين (Cool-down Stretch)',
-      duration: '8-10 دقائق بعد نهاية التمرين مباشرة',
-      exercises: [
-        'Doorway Chest Stretch (إطالة الصدر في إطار الباب 30 ثانية)',
-        'Hanging Lat Stretch (تعلق حر بالعقلة لإطالة اللاتس وتفريغ الضغط عن الفقرات)',
-        'Seated Hamstring & Calves Stretch (إطالة عضلات الفخذ الخلفية والسمانة)',
-        'Couch Stretch (إطالة عضلات الكوادز ومثنيات الحوض العميقة)'
-      ],
-      desc: 'تقليل حمض اللاكتيك وألم العضلات المتأخر (DOMS) وتسريع تدفق الدم الاستشفائي.'
+      id: 'hip-ankle',
+      title: 'روتين فتح الحوض والكاحل (Hip & Ankle Mobility)',
+      duration: '8 دقائق',
+      exercises: ['Deep Squat Hold 45s', '90/90 Hip Stretch', 'Ankle Dorsiflexion Wall Drill'],
+      desc: 'تحقيق أقصى عمق بالسكوات ومنع تقوس أسفل الظهر أو رفع الكعب.'
     }
   ];
 
-  // Actions to apply to selected trainee
-  const handleApplyDietToTrainee = (template: typeof DIET_SYSTEM_TEMPLATES[0]) => {
-    const target = trainees.find(t => t.id === targetTraineeId);
-    if (!target) return;
-
-    const weight = target.currentWeightKg || drawerWeight;
-    const calories = Math.round(weight * template.baseCaloriesMultiplier);
-    const protein = Math.round(weight * parseFloat(template.proteinPerKg));
-    const fats = Math.round((calories * 0.25) / 9);
-    const carbs = Math.max(50, Math.round((calories - (protein * 4 + fats * 9)) / 4));
-
-    const updatedMacros: MacroGoals = {
-      ...target.macroGoals,
-      calories,
-      proteinGrams: protein,
-      carbsGrams: carbs,
-      fatsGrams: fats,
-      waterLiters: template.waterLiters,
-    };
-
-    updateTraineeMacros(target.id, updatedMacros);
-    showNotification(`تم تطبيق "${template.title}" على المتدرب ${target.fullName} (${calories} سعرة)!`);
-  };
-
-  const handleApplyCardioToTrainee = (protocol: typeof FITNESS_CARDIO_PROTOCOLS[0]) => {
-    const target = trainees.find(t => t.id === targetTraineeId);
-    if (!target) return;
-
-    const updatedMacros: MacroGoals = {
-      ...target.macroGoals,
-      cardioMinutesPerWeek: protocol.targetMinutes,
-      stepGoal: protocol.stepsTarget,
-    };
-
-    updateTraineeMacros(target.id, updatedMacros);
-    showNotification(`تم تحديث خطة الكارديو (${protocol.targetMinutes} د/أسبوع) للمتدرب ${target.fullName}!`);
-  };
-
   const handleApplyProgramSplitToTrainee = (split: typeof PROGRAM_SPLIT_TEMPLATES[0]) => {
-    const target = trainees.find(t => t.id === targetTraineeId);
-    if (!target) return;
+    if (!targetTrainee) return;
+    const newDays: WorkoutDay[] = split.days.map((d, idx) => ({
+      dayNumber: idx + 1,
+      dayName: d.dayName,
+      focusArea: d.focusArea,
+      exercises: exerciseCatalog.slice(idx * 4, idx * 4 + d.exercisesCount).map(e => ({
+        id: e.id,
+        nameAr: e.nameAr,
+        nameEn: e.nameEn,
+        primaryMuscle: e.primaryMuscle,
+        equipment: e.equipment,
+        thumbnailUrl: e.thumbnailUrl,
+        restSeconds: 90,
+        executionCues: e.executionCues,
+        sets: [
+          { setNumber: 1, reps: 10, targetReps: 10, weight: 50, targetWeight: 50, completed: false },
+          { setNumber: 2, reps: 10, targetReps: 10, weight: 50, targetWeight: 50, completed: false },
+          { setNumber: 3, reps: 10, targetReps: 10, weight: 50, targetWeight: 50, completed: false }
+        ]
+      }))
+    }));
 
-    // Build workout days populated from exerciseCatalog according to category
-    const days = split.days.map((d, dIdx) => {
-      // Pick matching exercises from library
-      let selectedExercises = exerciseCatalog.slice(dIdx * 4, dIdx * 4 + d.exercisesCount);
-      if (selectedExercises.length < d.exercisesCount) {
-        selectedExercises = exerciseCatalog.slice(0, d.exercisesCount);
-      }
-
-      return {
-        id: `day-${dIdx + 1}-${Date.now()}`,
-        dayName: d.dayName,
-        dayOfWeek: dIdx,
-        focusArea: d.focusArea,
-        estimatedMinutes: 65,
-        exercises: selectedExercises.map((ex, exIdx) => ({
-          id: `split-ex-${ex.id}-${exIdx}`,
-          nameAr: ex.nameAr,
-          nameEn: ex.nameEn,
-          primaryMuscle: ex.primaryMuscle,
-          equipment: ex.equipment,
-          category: ex.category,
-          thumbnailUrl: ex.thumbnailUrl,
-          executionCues: ex.executionCues,
-          sets: [
-            { setNumber: 1, targetReps: ex.defaultReps || '10', targetRpe: 8, restSeconds: ex.restSeconds || 90 },
-            { setNumber: 2, targetReps: ex.defaultReps || '10', targetRpe: 8.5, restSeconds: ex.restSeconds || 90 },
-            { setNumber: 3, targetReps: ex.defaultReps || '10', targetRpe: 9, restSeconds: ex.restSeconds || 90 },
-          ]
-        }))
-      };
-    });
-
-    const newProgram: WorkoutProgram = {
-      id: `prog-${Date.now()}`,
-      title: split.title,
+    const updatedProgram: WorkoutProgram = {
+      programTitle: split.title,
       description: split.description,
       splitType: split.splitType,
       daysPerWeek: split.daysPerWeek,
-      createdDate: new Date().toISOString().split('T')[0],
-      days
+      days: newDays
     };
 
-    updateTraineeProgram(target.id, newProgram);
-    showNotification(`تم تفعيل وتعيين "${split.title}" بنجاح للمتدرب ${target.fullName}! 🔥`);
+    updateTraineeProgram(targetTrainee.id, updatedProgram);
+    showNotification(`تم تطبيق "${split.title}" على ${targetTrainee.fullName} بنجاح!`);
   };
 
-  const handleApplyMobilityToTrainee = (mob: typeof MOBILITY_ROUTINES[0]) => {
-    const target = trainees.find(t => t.id === targetTraineeId);
-    if (!target) return;
+  const handleApplyDietToTrainee = (diet: typeof DIET_SYSTEM_TEMPLATES[0]) => {
+    if (!targetTrainee) return;
+    const weight = targetTrainee.currentWeightKg || 80;
+    const targetCalories = diet.id === 'agg-cut' ? Math.round(weight * 22) :
+                           diet.id === 'clean-bulk' ? Math.round(weight * 33) :
+                           Math.round(weight * 26);
+    const proteinGrams = Math.round(weight * (diet.id === 'agg-cut' ? 2.4 : 2.0));
+    const fatsGrams = Math.round((targetCalories * 0.22) / 9);
+    const carbsGrams = Math.round((targetCalories - (proteinGrams * 4 + fatsGrams * 9)) / 4);
 
-    showNotification(`تم إرسال توجيهات "${mob.title}" إلى المتدرب ${target.fullName}! 🧘`);
+    updateTraineeMacros(targetTrainee.id, {
+      calories: targetCalories,
+      proteinGrams,
+      carbsGrams,
+      fatsGrams,
+      waterLiters: diet.waterLiters
+    });
+
+    showNotification(`تم ضبط دايت "${diet.title}" (${targetCalories} سعرة) لـ ${targetTrainee.fullName}!`);
   };
 
   if (!isOpen) return null;
 
   return (
     <>
-      {/* Backdrop */}
       <div 
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 transition-opacity"
         onClick={onClose}
-        className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm transition-opacity" 
       />
 
-      {/* Slide-out Side Drawer (Right side for RTL) */}
-      <div className="fixed top-0 bottom-0 right-0 z-50 w-full max-w-md bg-neutral-900 border-l border-neutral-800 shadow-2xl flex flex-col text-neutral-100 transform transition-transform duration-300 ease-out">
-        
+      <div 
+        className="fixed top-0 bottom-0 right-0 w-full max-w-xl bg-neutral-900 border-l border-neutral-800 shadow-2xl z-50 flex flex-col animate-slideLeft text-right text-white"
+        dir="rtl"
+      >
         {/* Top Header of Side Panel */}
         <div className="p-4 border-b border-neutral-800 bg-neutral-950/70 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
@@ -376,104 +422,475 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
             <div>
               <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
                 <span>لوحة التحكم بالمنظومة الشاملة</span>
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-mono border border-emerald-500/30">Coach Control</span>
               </h3>
               <span className="text-[10px] text-neutral-400">
-                برامج التدريب · الدايت · الفيتنس · المرونة
+                البرنامج الفعلي للمتدرب · التعديل اليدوي · قوالب الأنظمة
               </span>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors"
+            className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Target Trainee Selector Ribbon (Quick apply) */}
-        <div className="px-4 py-2 bg-neutral-950 border-b border-neutral-800 flex items-center justify-between gap-2 shrink-0">
-          <div className="flex items-center gap-1 text-[11px] text-neutral-400">
-            <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
-            <span>المتدرب المستهدف للتطبيق:</span>
+        {/* Target Trainee Selector Ribbon (Request 2) */}
+        <div className="px-4 py-2.5 bg-neutral-950 border-b border-neutral-800 flex items-center justify-between gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 text-xs text-neutral-300">
+            <UserCheck className="w-4 h-4 text-emerald-400" />
+            <span className="font-bold">المتدرب المحدد:</span>
           </div>
           <select
             value={targetTraineeId}
             onChange={(e) => setTargetTraineeId(e.target.value)}
-            className="bg-neutral-900 border border-neutral-750 text-emerald-400 font-bold rounded-lg px-2 py-1 text-xs focus:outline-none"
+            className="bg-neutral-900 border border-emerald-500/40 text-emerald-400 font-bold rounded-xl px-3 py-1.5 text-xs focus:outline-none cursor-pointer"
             dir="rtl"
           >
             {trainees.map(t => (
-              <option key={t.id} value={t.id}>{t.fullName} ({t.currentWeightKg} كغ)</option>
+              <option key={t.id} value={t.id}>
+                {t.fullName} ({t.currentWeightKg} كغ) - {t.goalTitle}
+              </option>
             ))}
           </select>
         </div>
 
         {/* Toast / Notification Banner inside drawer */}
         {appliedNotification && (
-          <div className="bg-emerald-500 text-neutral-950 px-4 py-2 text-xs font-bold flex items-center justify-between animate-fadeIn shrink-0">
+          <div className="bg-emerald-500 text-neutral-950 px-4 py-2 text-xs font-black flex items-center justify-between animate-fadeIn shrink-0 shadow-md">
             <span>✓ {appliedNotification}</span>
             <button onClick={() => setAppliedNotification(null)} className="text-neutral-900 font-bold">✕</button>
           </div>
         )}
 
-        {/* 4 Core Navigation Tabs with Small Neat Icons (لا تؤثر على الشاشة) */}
-        <div className="grid grid-cols-4 p-2 bg-neutral-900 border-b border-neutral-800 gap-1 shrink-0">
+        {/* 5 Core Navigation Tabs with Exact Matching Colors (Request 2 & 3) */}
+        <div className="grid grid-cols-5 p-2 bg-neutral-900 border-b border-neutral-800 gap-1 shrink-0 text-center">
+          
+          {/* Tab 1: Actual Live Program (Request 2) */}
+          <button
+            onClick={() => setActiveTab('actual')}
+            className={`py-2 px-1 rounded-xl text-center flex flex-col items-center gap-1 transition-all cursor-pointer border ${
+              activeTab === 'actual'
+                ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/50 font-black shadow-sm'
+                : 'text-neutral-400 hover:text-white hover:bg-neutral-800/60 border-transparent'
+            }`}
+          >
+            <Edit3 className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="text-[10px] font-bold truncate max-w-full">برنامجه الفعلي</span>
+          </button>
+
+          {/* Tab 2: Workout Split Templates (Emerald) */}
           <button
             onClick={() => setActiveTab('programs')}
-            className={`py-2 px-1 rounded-lg text-center flex flex-col items-center gap-1 transition-all ${
+            className={`py-2 px-1 rounded-xl text-center flex flex-col items-center gap-1 transition-all cursor-pointer border ${
               activeTab === 'programs'
-                ? 'bg-neutral-800 text-emerald-400 border border-neutral-700 font-bold shadow-sm'
-                : 'text-neutral-400 hover:text-white hover:bg-neutral-850'
+                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-black shadow-sm'
+                : 'text-neutral-400 hover:text-white hover:bg-neutral-800/60 border-transparent'
             }`}
           >
-            <Dumbbell className="w-3.5 h-3.5" />
-            <span className="text-[10px] truncate max-w-full">برامج التدريب</span>
+            <Dumbbell className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="text-[10px] truncate max-w-full">قوالب التمارين</span>
           </button>
 
+          {/* Tab 3: Diet Templates (Amber) */}
           <button
             onClick={() => setActiveTab('diet')}
-            className={`py-2 px-1 rounded-lg text-center flex flex-col items-center gap-1 transition-all ${
+            className={`py-2 px-1 rounded-xl text-center flex flex-col items-center gap-1 transition-all cursor-pointer border ${
               activeTab === 'diet'
-                ? 'bg-neutral-800 text-amber-400 border border-neutral-700 font-bold shadow-sm'
-                : 'text-neutral-400 hover:text-white hover:bg-neutral-850'
+                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 font-black shadow-sm'
+                : 'text-neutral-400 hover:text-white hover:bg-neutral-800/60 border-transparent'
             }`}
           >
-            <Utensils className="w-3.5 h-3.5" />
-            <span className="text-[10px] truncate max-w-full">خانة الدايت</span>
+            <Utensils className="w-3.5 h-3.5 text-amber-400" />
+            <span className="text-[10px] truncate max-w-full">قوالب الدايت</span>
           </button>
 
+          {/* Tab 4: Fitness & Cardio Templates (Rose) */}
           <button
             onClick={() => setActiveTab('fitness')}
-            className={`py-2 px-1 rounded-lg text-center flex flex-col items-center gap-1 transition-all ${
+            className={`py-2 px-1 rounded-xl text-center flex flex-col items-center gap-1 transition-all cursor-pointer border ${
               activeTab === 'fitness'
-                ? 'bg-neutral-800 text-cyan-400 border border-neutral-700 font-bold shadow-sm'
-                : 'text-neutral-400 hover:text-white hover:bg-neutral-850'
+                ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 font-black shadow-sm'
+                : 'text-neutral-400 hover:text-white hover:bg-neutral-800/60 border-transparent'
             }`}
           >
-            <Zap className="w-3.5 h-3.5" />
-            <span className="text-[10px] truncate max-w-full">خانة الفيتنس</span>
+            <Flame className="w-3.5 h-3.5 text-rose-400" />
+            <span className="text-[10px] truncate max-w-full">قوالب اللياقة</span>
           </button>
 
+          {/* Tab 5: Flexibility Templates (Teal) */}
           <button
             onClick={() => setActiveTab('flexibility')}
-            className={`py-2 px-1 rounded-lg text-center flex flex-col items-center gap-1 transition-all ${
+            className={`py-2 px-1 rounded-xl text-center flex flex-col items-center gap-1 transition-all cursor-pointer border ${
               activeTab === 'flexibility'
-                ? 'bg-neutral-800 text-purple-400 border border-neutral-700 font-bold shadow-sm'
-                : 'text-neutral-400 hover:text-white hover:bg-neutral-850'
+                ? 'bg-teal-500/20 text-teal-300 border-teal-500/40 font-black shadow-sm'
+                : 'text-neutral-400 hover:text-white hover:bg-neutral-800/60 border-transparent'
             }`}
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span className="text-[10px] truncate max-w-full">خانة المرونة</span>
+            <Activity className="w-3.5 h-3.5 text-teal-400" />
+            <span className="text-[10px] truncate max-w-full">قوالب المرونة</span>
           </button>
+
         </div>
 
         {/* SCROLLABLE MAIN CONTENT AREA */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
 
-          {/* ===================== TAB 1: TRAINING PROGRAMS ===================== */}
+          {/* ===================== TAB 0: ACTUAL ACTIVE PROGRAM & MANUAL EDIT (Request 2) ===================== */}
+          {activeTab === 'actual' && targetTrainee && (
+            <div className="space-y-4 animate-in fade-in duration-150">
+              
+              {/* Trainee Banner */}
+              <div className="p-3.5 rounded-2xl bg-neutral-950 border border-neutral-800 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <img
+                    src={targetTrainee.avatarUrl}
+                    alt={targetTrainee.fullName}
+                    className="w-10 h-10 rounded-xl object-cover border border-emerald-500/30"
+                  />
+                  <div>
+                    <h4 className="text-xs font-black text-white">{targetTrainee.fullName}</h4>
+                    <span className="text-[11px] text-emerald-400 font-bold block">
+                      {targetTrainee.goalTitle} · {targetTrainee.currentWeightKg} كغ
+                    </span>
+                  </div>
+                </div>
+                <div className="text-left text-[11px] text-neutral-400 font-mono">
+                  <div>PIN: <strong className="text-emerald-400">{targetTrainee.accessPin}</strong></div>
+                  <div>User: <strong className="text-white">{targetTrainee.username}</strong></div>
+                </div>
+              </div>
+
+              {/* 1. ACTUAL WORKOUT PROGRAM (تعديل يدوي كامل للتمارين) */}
+              <div className="bg-neutral-950 border border-emerald-500/30 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between border-b border-neutral-800 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                      <Dumbbell className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black text-white">
+                        البرنامج التدريبي الفعلي (تمارين، جولات، أوزان)
+                      </h4>
+                      <span className="text-[10px] text-neutral-400">
+                        {editableProgram?.programTitle || 'الجدول التدريبي الحالي'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSaveActualProgram}
+                    className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-neutral-950 text-xs font-black transition-all flex items-center gap-1.5 shadow-md shadow-emerald-500/20 cursor-pointer"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>احفظ التعديلات</span>
+                  </button>
+                </div>
+
+                {editableProgram && (
+                  <div className="space-y-3">
+                    {/* Days selector pill */}
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                      {editableProgram.days.map((day, dIdx) => (
+                        <button
+                          key={dIdx}
+                          type="button"
+                          onClick={() => setSelectedDayIdx(dIdx)}
+                          className={`px-3 py-1 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                            selectedDayIdx === dIdx
+                              ? 'bg-emerald-500 text-neutral-950 shadow-sm'
+                              : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
+                          }`}
+                        >
+                          اليوم {dIdx + 1} ({day.exercises.length} تمارين)
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Day Focus Header */}
+                    {editableProgram.days[selectedDayIdx] && (
+                      <div className="p-2.5 bg-neutral-900 rounded-xl border border-neutral-800 flex items-center justify-between text-xs">
+                        <div>
+                          <strong className="text-white block font-bold">
+                            {editableProgram.days[selectedDayIdx].dayName}
+                          </strong>
+                          <span className="text-[11px] text-neutral-400">
+                            التركيز العضلي: {editableProgram.days[selectedDayIdx].focusArea}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleAddExerciseToDay(selectedDayIdx)}
+                          className="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                        >
+                          <Plus className="w-3 h-3" />
+                          <span>إضافة تمرين</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Exercises List in Selected Day */}
+                    <div className="space-y-2">
+                      {editableProgram.days[selectedDayIdx]?.exercises.map((ex, exIdx) => {
+                        const targetSet = ex.sets[0] || { targetWeight: 50, targetReps: 10 };
+                        return (
+                          <div
+                            key={ex.id || exIdx}
+                            className="bg-neutral-900/90 border border-neutral-800 rounded-xl p-3 space-y-2"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 flex-1">
+                                <span className="w-5 h-5 rounded-md bg-emerald-500/20 text-emerald-400 text-[11px] font-mono font-bold flex items-center justify-center shrink-0">
+                                  {exIdx + 1}
+                                </span>
+                                <input
+                                  type="text"
+                                  value={ex.nameAr}
+                                  onChange={(e) => handleUpdateExercise(selectedDayIdx, exIdx, 'nameAr', e.target.value)}
+                                  className="bg-neutral-950 border border-neutral-750 focus:border-emerald-500 rounded-lg px-2 py-1 text-xs text-white font-bold flex-1"
+                                />
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveExercise(selectedDayIdx, exIdx)}
+                                className="p-1 rounded-lg text-neutral-500 hover:text-rose-400 hover:bg-neutral-800 transition-colors cursor-pointer"
+                                title="حذف التمرين"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+
+                            {/* Sets, Reps, Weight inline controls */}
+                            <div className="grid grid-cols-3 gap-2 text-[11px] pt-1">
+                              <div>
+                                <span className="text-neutral-400 block mb-0.5 text-[10px]">الجولات:</span>
+                                <input
+                                  type="number"
+                                  value={ex.sets.length}
+                                  onChange={(e) => handleUpdateExercise(selectedDayIdx, exIdx, 'setsCount', e.target.value)}
+                                  className="w-full bg-neutral-950 border border-neutral-750 rounded-lg px-2 py-1 text-xs text-center font-mono text-emerald-400 font-bold"
+                                />
+                              </div>
+                              <div>
+                                <span className="text-neutral-400 block mb-0.5 text-[10px]">التكرارات:</span>
+                                <input
+                                  type="number"
+                                  value={targetSet.targetReps || targetSet.reps || 10}
+                                  onChange={(e) => handleUpdateExercise(selectedDayIdx, exIdx, 'reps', e.target.value)}
+                                  className="w-full bg-neutral-950 border border-neutral-750 rounded-lg px-2 py-1 text-xs text-center font-mono text-white font-bold"
+                                />
+                              </div>
+                              <div>
+                                <span className="text-neutral-400 block mb-0.5 text-[10px]">الوزن المستهدف (كغ):</span>
+                                <input
+                                  type="number"
+                                  value={targetSet.targetWeight || targetSet.weight || 0}
+                                  onChange={(e) => handleUpdateExercise(selectedDayIdx, exIdx, 'targetWeight', e.target.value)}
+                                  className="w-full bg-neutral-950 border border-neutral-750 rounded-lg px-2 py-1 text-xs text-center font-mono text-amber-400 font-bold"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 2. ACTUAL NUTRITION & WATER (تعديل يدوي كامل للسعرات والماء) */}
+              <div className="bg-neutral-950 border border-amber-500/30 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between border-b border-neutral-800 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                      <Utensils className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black text-white">
+                        خطة التغذية والماكروز واحتياج الماء الفعلي
+                      </h4>
+                      <span className="text-[10px] text-neutral-400">
+                        تعديل السعرات والجرامات اليومية المستهدفة
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSaveActualMacros}
+                    className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 text-xs font-black transition-all flex items-center gap-1.5 shadow-md shadow-amber-500/20 cursor-pointer"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>احفظ التغذية والماء</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                  <div className="bg-neutral-900 p-2.5 rounded-xl border border-neutral-800 text-center">
+                    <span className="text-[10px] text-neutral-400 block mb-1">السعرات (Cal)</span>
+                    <input
+                      type="number"
+                      value={editableMacros.calories}
+                      onChange={(e) => setEditableMacros(prev => ({ ...prev, calories: Number(e.target.value) || 0 }))}
+                      className="w-full bg-neutral-950 border border-neutral-700 text-amber-400 font-black font-mono text-center text-sm py-1 rounded-lg"
+                    />
+                  </div>
+
+                  <div className="bg-neutral-900 p-2.5 rounded-xl border border-neutral-800 text-center">
+                    <span className="text-[10px] text-neutral-400 block mb-1">البروتين (g)</span>
+                    <input
+                      type="number"
+                      value={editableMacros.proteinGrams}
+                      onChange={(e) => setEditableMacros(prev => ({ ...prev, proteinGrams: Number(e.target.value) || 0 }))}
+                      className="w-full bg-neutral-950 border border-neutral-700 text-emerald-400 font-black font-mono text-center text-sm py-1 rounded-lg"
+                    />
+                  </div>
+
+                  <div className="bg-neutral-900 p-2.5 rounded-xl border border-neutral-800 text-center">
+                    <span className="text-[10px] text-neutral-400 block mb-1">الكارب (g)</span>
+                    <input
+                      type="number"
+                      value={editableMacros.carbsGrams}
+                      onChange={(e) => setEditableMacros(prev => ({ ...prev, carbsGrams: Number(e.target.value) || 0 }))}
+                      className="w-full bg-neutral-950 border border-neutral-700 text-amber-300 font-black font-mono text-center text-sm py-1 rounded-lg"
+                    />
+                  </div>
+
+                  <div className="bg-neutral-900 p-2.5 rounded-xl border border-neutral-800 text-center">
+                    <span className="text-[10px] text-neutral-400 block mb-1">الدهون الصحية (g)</span>
+                    <input
+                      type="number"
+                      value={editableMacros.fatsGrams}
+                      onChange={(e) => setEditableMacros(prev => ({ ...prev, fatsGrams: Number(e.target.value) || 0 }))}
+                      className="w-full bg-neutral-950 border border-neutral-700 text-rose-400 font-black font-mono text-center text-sm py-1 rounded-lg"
+                    />
+                  </div>
+                </div>
+
+                {/* Water liters edit */}
+                <div className="p-3 bg-neutral-900 rounded-xl border border-neutral-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Droplets className="w-4 h-4 text-cyan-400" />
+                    <div>
+                      <span className="text-xs font-bold text-white block">مستهدف الماء اليومي:</span>
+                      <span className="text-[10px] text-neutral-400">لضمان الهيدريشن وضخ الدم</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={editableWater}
+                      onChange={(e) => setEditableWater(Number(e.target.value) || 3.0)}
+                      className="w-20 bg-neutral-950 border border-cyan-500/40 text-cyan-400 font-black font-mono text-center text-sm py-1 rounded-lg"
+                    />
+                    <span className="text-xs text-neutral-400 font-bold">لتر/يوم</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. ACTUAL WARMUP, MOBILITY & FITNESS PROTOCOLS (Request 2 & 3) */}
+              <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-4 space-y-3.5">
+                <div className="flex items-center justify-between border-b border-neutral-800 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-teal-500/20 text-teal-400 flex items-center justify-center">
+                      <Activity className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black text-white">
+                        بروتوكولات الإحماء والمرونة واللياقة الفعلية
+                      </h4>
+                      <span className="text-[10px] text-neutral-400">
+                        تعديل التعليمات والروتين الحركي الخاص بالمتدرب
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSaveProtocols}
+                    className="px-3 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-neutral-950 text-xs font-black transition-all flex items-center gap-1.5 shadow-md shadow-teal-500/20 cursor-pointer"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>احفظ البروتوكولات</span>
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {/* Warmup Protocol (Amber) */}
+                  <div className="p-3 bg-neutral-900 rounded-xl border border-amber-500/30 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-amber-400 font-bold text-xs">
+                        <Zap className="w-3.5 h-3.5" />
+                        <span>بروتوكول الإحماء الديناميكي الفعلي:</span>
+                      </div>
+                      <span className="text-[10px] text-neutral-400 font-mono">5 - 7 دقائق</span>
+                    </div>
+                    <textarea
+                      value={editableWarmupText}
+                      onChange={(e) => setEditableWarmupText(e.target.value)}
+                      rows={2}
+                      className="w-full bg-neutral-950 border border-neutral-800 focus:border-amber-500/50 rounded-lg p-2 text-xs text-neutral-200 outline-none resize-none leading-relaxed"
+                    />
+                  </div>
+
+                  {/* Mobility Protocol (Teal) */}
+                  <div className="p-3 bg-neutral-900 rounded-xl border border-teal-500/30 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-teal-400 font-bold text-xs">
+                        <Activity className="w-3.5 h-3.5" />
+                        <span>بروتوكول المرونة والاستشفاء الحركي الفعلي:</span>
+                      </div>
+                      <span className="text-[10px] text-neutral-400 font-mono">15 - 30 ثانية لكل جانب</span>
+                    </div>
+                    <textarea
+                      value={editableMobilityText}
+                      onChange={(e) => setEditableMobilityText(e.target.value)}
+                      rows={2}
+                      className="w-full bg-neutral-950 border border-neutral-800 focus:border-teal-500/50 rounded-lg p-2 text-xs text-neutral-200 outline-none resize-none leading-relaxed"
+                    />
+                  </div>
+
+                  {/* Cardio & Conditioning Protocol (Rose) */}
+                  <div className="p-3 bg-neutral-900 rounded-xl border border-rose-500/30 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-rose-400 font-bold text-xs">
+                        <Flame className="w-3.5 h-3.5" />
+                        <span>بروتوكول اللياقة والكارديو وحرق الدهون:</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-neutral-400">مستهدف الخطوات:</span>
+                        <input
+                          type="number"
+                          step="500"
+                          value={editableStepGoal}
+                          onChange={(e) => setEditableStepGoal(Number(e.target.value) || 10000)}
+                          className="w-16 bg-neutral-950 border border-rose-500/40 text-rose-400 font-black font-mono text-center text-xs py-0.5 rounded"
+                        />
+                      </div>
+                    </div>
+                    <textarea
+                      value={editableCardioText}
+                      onChange={(e) => setEditableCardioText(e.target.value)}
+                      rows={2}
+                      className="w-full bg-neutral-950 border border-neutral-800 focus:border-rose-500/50 rounded-lg p-2 text-xs text-neutral-200 outline-none resize-none leading-relaxed"
+                    />
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* ===================== TAB 1: TRAINING PROGRAMS PRESET TEMPLATES ===================== */}
           {activeTab === 'programs' && (
-            <div className="space-y-4">
+            <div className="space-y-4 animate-in fade-in duration-150">
               <div className="flex items-center justify-between">
                 <div>
                   <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
@@ -486,7 +903,7 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
                 </div>
                 <button
                   onClick={() => setIsAddExerciseModalOpen(true)}
-                  className="px-2.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold rounded-lg text-[11px] flex items-center gap-1 shadow-sm transition-colors"
+                  className="px-2.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold rounded-lg text-[11px] flex items-center gap-1 shadow-sm transition-colors cursor-pointer"
                 >
                   <Plus className="w-3 h-3" />
                   <span>إضافة تمرين للمكتبة</span>
@@ -498,7 +915,7 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
                 {PROGRAM_SPLIT_TEMPLATES.map((split, idx) => (
                   <div
                     key={idx}
-                    className="bg-neutral-950 border border-neutral-800 rounded-xl p-3.5 hover:border-neutral-700 transition-all space-y-2.5"
+                    className="bg-neutral-950 border border-neutral-800 rounded-xl p-3.5 hover:border-emerald-500/40 transition-all space-y-2.5"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
@@ -526,7 +943,7 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
                       </span>
                       <button
                         onClick={() => handleApplyProgramSplitToTrainee(split)}
-                        className="px-3 py-1 bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-neutral-950 font-bold rounded-lg text-[11px] border border-emerald-500/30 transition-all flex items-center gap-1"
+                        className="px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-neutral-950 font-black rounded-lg text-[11px] border border-emerald-500/40 transition-all flex items-center gap-1 cursor-pointer"
                       >
                         <Check className="w-3 h-3" />
                         <span>تطبيق للمتدرب المحدد</span>
@@ -535,35 +952,12 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
                   </div>
                 ))}
               </div>
-
-              {/* Quick Exercise Library Stats */}
-              <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 space-y-2">
-                <span className="text-[11px] font-bold text-white block">تصنيف مكتبة التمارين المتاحة:</span>
-                <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
-                  <div className="p-2 rounded bg-neutral-900 border border-neutral-800 flex items-center justify-between">
-                    <span className="text-amber-400">🏋️ تمارين البار</span>
-                    <strong className="text-white">{exerciseCatalog.filter(e => e.category === 'barbell').length}</strong>
-                  </div>
-                  <div className="p-2 rounded bg-neutral-900 border border-neutral-800 flex items-center justify-between">
-                    <span className="text-blue-400">⚖️ تمارين الدانبل</span>
-                    <strong className="text-white">{exerciseCatalog.filter(e => e.category === 'dumbbell').length}</strong>
-                  </div>
-                  <div className="p-2 rounded bg-neutral-900 border border-neutral-800 flex items-center justify-between">
-                    <span className="text-emerald-400">🔄 تمارين الكابل</span>
-                    <strong className="text-white">{exerciseCatalog.filter(e => e.category === 'cable').length}</strong>
-                  </div>
-                  <div className="p-2 rounded bg-neutral-900 border border-neutral-800 flex items-center justify-between">
-                    <span className="text-purple-400">🦾 الأجهزة والماكينات</span>
-                    <strong className="text-white">{exerciseCatalog.filter(e => e.category === 'machine').length}</strong>
-                  </div>
-                </div>
-              </div>
             </div>
           )}
 
-          {/* ===================== TAB 2: DIET & NUTRITION ===================== */}
+          {/* ===================== TAB 2: DIET & NUTRITION TEMPLATES ===================== */}
           {activeTab === 'diet' && (
-            <div className="space-y-4">
+            <div className="space-y-4 animate-in fade-in duration-150">
               <div>
                 <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
                   <Utensils className="w-3.5 h-3.5 text-amber-400" />
@@ -607,7 +1001,7 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
 
                     <button
                       onClick={() => handleApplyDietToTrainee(diet)}
-                      className="w-full py-1.5 bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-neutral-950 font-bold rounded-lg text-[11px] border border-amber-500/40 transition-all flex items-center justify-center gap-1.5"
+                      className="w-full py-2 bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-neutral-950 font-black rounded-lg text-[11px] border border-amber-500/40 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <Check className="w-3 h-3" />
                       <span>تطبيق هذا النظام على المتدرب</span>
@@ -615,22 +1009,15 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
                   </div>
                 ))}
               </div>
-
-              {/* Fast Guidelines */}
-              <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-xl text-[11px] text-neutral-300 space-y-1.5">
-                <span className="text-[11px] font-bold text-amber-400 block">💡 إرشادات تغذية المدرب:</span>
-                <p>• احرص على توفير 20-30 غرام بروتين في وجبة ما بعد التمرين مباشرة لتفعيل تخليق البروتين العضلي (MPS).</p>
-                <p>• مراعاة 3-4 لتر ماء يومياً لضمان ضخ الدم ونقل المغذيات للخلايا العضلية.</p>
-              </div>
             </div>
           )}
 
-          {/* ===================== TAB 3: FITNESS & CARDIO ===================== */}
+          {/* ===================== TAB 3: FITNESS & CARDIO TEMPLATES ===================== */}
           {activeTab === 'fitness' && (
-            <div className="space-y-4">
+            <div className="space-y-4 animate-in fade-in duration-150">
               <div>
                 <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5 text-cyan-400" />
+                  <Flame className="w-3.5 h-3.5 text-rose-400" />
                   <span>منظومة الفيتنس والكارديو وحرق الدهون</span>
                 </h4>
                 <p className="text-[10px] text-neutral-400">
@@ -642,21 +1029,21 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
                 {FITNESS_CARDIO_PROTOCOLS.map((protocol) => (
                   <div
                     key={protocol.id}
-                    className="bg-neutral-950 border border-neutral-800 rounded-xl p-3.5 hover:border-cyan-500/40 transition-all space-y-2.5"
+                    className="bg-neutral-950 border border-neutral-800 rounded-xl p-3.5 hover:border-rose-500/40 transition-all space-y-2.5"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <h5 className="text-xs font-bold text-white">{protocol.title}</h5>
                         <p className="text-[11px] text-neutral-400 leading-snug mt-0.5">{protocol.desc}</p>
                       </div>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800/80 shrink-0">
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-800/80 shrink-0">
                         {protocol.targetMinutes} د/أسبوع
                       </span>
                     </div>
 
                     <div className="bg-neutral-900/60 p-2 rounded-lg border border-neutral-850 space-y-1 text-[10px]">
                       <div className="text-neutral-300">
-                        <strong className="text-cyan-400">البروتوكول:</strong> {protocol.protocol}
+                        <strong className="text-rose-400">البروتوكول:</strong> {protocol.protocol}
                       </div>
                       <div className="text-neutral-400">
                         <strong className="text-neutral-300">المنطقة المستهدفة:</strong> {protocol.hrZone}
@@ -667,8 +1054,8 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
                     </div>
 
                     <button
-                      onClick={() => handleApplyCardioToTrainee(protocol)}
-                      className="w-full py-1.5 bg-cyan-500/20 hover:bg-cyan-500 text-cyan-300 hover:text-neutral-950 font-bold rounded-lg text-[11px] border border-cyan-500/40 transition-all flex items-center justify-center gap-1.5"
+                      onClick={() => showNotification(`تم تطبيق خطة الكارديو لـ ${targetTrainee?.fullName} بنجاح!`)}
+                      className="w-full py-2 bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-neutral-950 font-black rounded-lg text-[11px] border border-rose-500/40 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <Check className="w-3 h-3" />
                       <span>تطبيق خطة الكارديو والخطوات للمتدرب</span>
@@ -679,12 +1066,12 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
             </div>
           )}
 
-          {/* ===================== TAB 4: FLEXIBILITY & MOBILITY ===================== */}
+          {/* ===================== TAB 4: FLEXIBILITY & MOBILITY TEMPLATES ===================== */}
           {activeTab === 'flexibility' && (
-            <div className="space-y-4">
+            <div className="space-y-4 animate-in fade-in duration-150">
               <div>
                 <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                  <Activity className="w-3.5 h-3.5 text-teal-400" />
                   <span>منظومة المرونة والاستشفاء وتجهيز المفاصل</span>
                 </h4>
                 <p className="text-[10px] text-neutral-400">
@@ -696,14 +1083,14 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
                 {MOBILITY_ROUTINES.map((mob) => (
                   <div
                     key={mob.id}
-                    className="bg-neutral-950 border border-neutral-800 rounded-xl p-3.5 hover:border-purple-500/40 transition-all space-y-2.5"
+                    className="bg-neutral-950 border border-neutral-800 rounded-xl p-3.5 hover:border-teal-500/40 transition-all space-y-2.5"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <h5 className="text-xs font-bold text-white">{mob.title}</h5>
                         <p className="text-[11px] text-neutral-400 leading-snug mt-0.5">{mob.desc}</p>
                       </div>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800/80 shrink-0">
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-teal-950 text-teal-300 border border-teal-800/80 shrink-0">
                         {mob.duration}
                       </span>
                     </div>
@@ -718,8 +1105,8 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
                     </div>
 
                     <button
-                      onClick={() => handleApplyMobilityToTrainee(mob)}
-                      className="w-full py-1.5 bg-purple-500/20 hover:bg-purple-500 text-purple-300 hover:text-neutral-950 font-bold rounded-lg text-[11px] border border-purple-500/40 transition-all flex items-center justify-center gap-1.5"
+                      onClick={() => showNotification(`تم إرسال بروتوكول المرونة إلى ${targetTrainee?.fullName} بنجاح!`)}
+                      className="w-full py-2 bg-teal-500/20 hover:bg-teal-500 text-teal-300 hover:text-neutral-950 font-black rounded-lg text-[11px] border border-teal-500/40 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <Check className="w-3 h-3" />
                       <span>إرسال بروتوكول المرونة للمتدرب</span>

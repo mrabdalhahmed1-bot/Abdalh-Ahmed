@@ -5,12 +5,9 @@ import {
   KeyRound, 
   Eye, 
   EyeOff, 
-  ShieldCheck, 
   Sparkles, 
   AlertCircle, 
-  Smartphone, 
-  Lock,
-  X
+  Smartphone
 } from 'lucide-react';
 import { TraineeProfile } from '../../types/fitness';
 
@@ -34,13 +31,6 @@ export const TraineeLoginPage: React.FC<TraineeLoginPageProps> = ({ onOpenInstal
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [targetedTrainee, setTargetedTrainee] = useState<TraineeProfile | null>(null);
-
-  // Coach Login Modal State
-  const [isCoachModalOpen, setIsCoachModalOpen] = useState(false);
-  const [coachUserInput, setCoachUserInput] = useState('');
-  const [coachPinInput, setCoachPinInput] = useState('');
-  const [showCoachPin, setShowCoachPin] = useState(false);
-  const [coachError, setCoachError] = useState<string | null>(null);
 
   // Check URL query parameters on mount to prefill username or greet trainee
   useEffect(() => {
@@ -87,6 +77,14 @@ export const TraineeLoginPage: React.FC<TraineeLoginPageProps> = ({ onOpenInstal
     setIsLoading(true);
 
     setTimeout(() => {
+      // 1. Direct Coach Login Check (unified login for Coach & Trainees)
+      if (verifyCoachCredentials(username, pin)) {
+        setIsLoading(false);
+        loginAsCoach();
+        return;
+      }
+
+      // 2. Trainee Login
       const result = loginTrainee(username, pin);
       setIsLoading(false);
 
@@ -94,28 +92,6 @@ export const TraineeLoginPage: React.FC<TraineeLoginPageProps> = ({ onOpenInstal
         setErrorMessage(result.error || 'اسم المستخدم أو الرقم السري غير صحيح. يرجى التأكد من البيانات أو مراجعة الكوتش.');
       }
     }, 400);
-  };
-
-  const handleCoachLoginSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setCoachError(null);
-
-    if (!coachUserInput.trim()) {
-      setCoachError('يرجى كتابة اسم مستخدم المدرب');
-      return;
-    }
-    if (!coachPinInput.trim()) {
-      setCoachError('يرجى إدخال الرقم السري للمدرب');
-      return;
-    }
-
-    const isValid = verifyCoachCredentials(coachUserInput, coachPinInput);
-    if (isValid) {
-      setIsCoachModalOpen(false);
-      loginAsCoach();
-    } else {
-      setCoachError('اسم مستخدم المدرب أو الرقم السري غير صحيح');
-    }
   };
 
   const handleWhatsAppCoachHelp = () => {
@@ -341,122 +317,7 @@ export const TraineeLoginPage: React.FC<TraineeLoginPageProps> = ({ onOpenInstal
 
         </div>
 
-        {/* Footer: Coach Secure Login Button */}
-        <div className="mt-6 text-center">
-          <button
-            type="button"
-            onClick={() => {
-              setCoachUserInput('');
-              setCoachPinInput('');
-              setCoachError(null);
-              setIsCoachModalOpen(true);
-            }}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-neutral-900/80 hover:bg-neutral-900 border border-neutral-800 hover:border-emerald-500/40 text-neutral-300 hover:text-emerald-400 text-xs font-bold transition-all cursor-pointer shadow-lg"
-          >
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span>أنت المدرب؟ دخول لوحة تحكم كوتش عبدالله قاسم 👑</span>
-          </button>
-        </div>
-
       </div>
-
-      {/* Coach Authentication Modal */}
-      {isCoachModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="w-full max-w-sm bg-neutral-900 border border-emerald-500/40 rounded-3xl p-6 shadow-2xl relative overflow-hidden text-right">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-amber-500" />
-            
-            <div className="flex items-center justify-between pb-3 mb-3 border-b border-neutral-800">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
-                  <Lock className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-white">تسجيل دخول المدرب</h3>
-                  <span className="text-[10px] text-emerald-400 font-bold">بوابة كوتش عبدالله قاسم</span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsCoachModalOpen(false)}
-                className="p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {coachError && (
-              <div className="mb-4 p-2.5 rounded-xl bg-red-950/60 border border-red-500/50 text-red-300 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
-                <span>{coachError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleCoachLoginSubmit} className="space-y-3.5">
-              <div>
-                <label className="block text-xs font-bold text-neutral-300 mb-1">
-                  اسم مستخدم المدرب (Username)
-                </label>
-                <input
-                  type="text"
-                  value={coachUserInput}
-                  onChange={(e) => setCoachUserInput(e.target.value)}
-                  placeholder="اسم المستخدم (افتراضي: coach)"
-                  className="w-full bg-neutral-950 border border-neutral-700 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-neutral-500 outline-none"
-                  autoCapitalize="none"
-                  dir="ltr"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-neutral-300 mb-1">
-                  الرقم السري للمدرب (PIN / كلمة المرور)
-                </label>
-                <div className="relative flex items-center">
-                  <input
-                    type={showCoachPin ? 'text' : 'password'}
-                    value={coachPinInput}
-                    onChange={(e) => setCoachPinInput(e.target.value)}
-                    placeholder="الرقم السري (افتراضي: 123456)"
-                    className="w-full bg-neutral-950 border border-neutral-700 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 pr-10 text-xs text-white placeholder-neutral-500 outline-none font-mono"
-                    dir="ltr"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowCoachPin(!showCoachPin)}
-                    className="absolute right-2.5 p-1 text-neutral-400 hover:text-white transition-colors cursor-pointer"
-                  >
-                    {showCoachPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-neutral-950/60 border border-neutral-800 text-[11px] text-neutral-400 space-y-1">
-                <div>اسم المستخدم الافتراضي: <strong className="text-white font-mono">coach</strong></div>
-                <div>الرقم السري الافتراضي: <strong className="text-emerald-400 font-mono">123456</strong></div>
-              </div>
-
-              <div className="pt-2 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsCoachModalOpen(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-bold transition-colors cursor-pointer"
-                >
-                  إلغاء
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-neutral-950 font-black text-xs transition-all shadow-md shadow-emerald-500/20 cursor-pointer"
-                >
-                  دخول لوحة المدرب 👑
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* App Copyright */}
       <div className="w-full text-center py-2 text-[11px] text-neutral-600 relative z-10">

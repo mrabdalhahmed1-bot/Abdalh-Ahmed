@@ -10,11 +10,13 @@ import {
   Flame, 
   Scale,
   CheckCircle2,
-  Camera
+  Camera,
+  FileDown
 } from 'lucide-react';
 import { MealSwapModal } from './MealSwapModal';
 import { FoodLoggerModal } from './FoodLoggerModal';
 import { FoodDetailModal } from './FoodDetailModal';
+import { exportProgramToPdf } from '../../utils/pdfExport';
 
 export const TraineeNutritionTab: React.FC = () => {
   const { 
@@ -342,9 +344,55 @@ export const TraineeNutritionTab: React.FC = () => {
     );
   };
 
+  const handleExportDietPdf = () => {
+    exportProgramToPdf({
+      title: 'الخطة الغذائية والماكروز اليومية المعتمدة',
+      subtitle: activeTrainee?.customDietPlan?.planType === 'carb_cycling'
+        ? (carbDayType === 'high' ? 'أيام الكارب العالي (High Carb Day)' : 'أيام الكارب المنخفض (Low Carb Day)')
+        : 'البرنامج الغذائي المخصص',
+      category: 'diet',
+      traineeName: activeTrainee?.fullName || 'المتدرب',
+      targetGoal: activeTrainee?.goalTitle,
+      items: dietSections.flatMap(sec =>
+        sec.foods.map(f => ({
+          title: f.name,
+          subtitle: `${sec.titleAr} · ${f.portion}`,
+          badges: [`${f.calories} سعرة`, `بروتين ${f.protein}g`, `كارب ${f.carbs}g`, `دهون ${f.fat}g`],
+          details: [`الألياف: ${f.fiber}g`]
+        }))
+      ),
+      summaryNotes: [
+        `المستهدف اليومي: ${activeTrainee?.macroGoals.calories || 2200} سعرة | بروتين ${activeTrainee?.macroGoals.proteinGrams || 160}g | كارب ${activeTrainee?.macroGoals.carbsGrams || 230}g | دهون ${activeTrainee?.macroGoals.fatsGrams || 60}g`,
+        `احتياج الماء اليومي: ${activeTrainee?.macroGoals.waterLiters || 3.5} لتر لترطيب الخلايا العضلية وضخ الدم`,
+        'احرص على وزن الوجبات بميزان المطبخ للحفاظ على دقة النتائج'
+      ]
+    });
+  };
+
   return (
     <div className="w-full space-y-4 pb-24 text-neutral-100">
       
+      {/* Diet Plan PDF Download Card (Request 4) */}
+      <div className="bg-neutral-900 border border-amber-500/30 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-md">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center shrink-0">
+            <Utensils className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-xs sm:text-sm font-black text-white">الخطة الغذائية وجدول الماكروز المعتمد</h3>
+            <p className="text-[11px] text-neutral-400">تحميل نسخة رسمية بصيغة PDF تتضمن جميع الوجبات والبدائل لهاتفك</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={handleExportDietPdf}
+          className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-neutral-950 font-black text-xs transition-all shadow-md flex items-center gap-1.5 cursor-pointer shrink-0"
+        >
+          <FileDown className="w-4 h-4" />
+          <span>تحميل PDF 📄</span>
+        </button>
+      </div>
+
       {/* AI Food Lens Action Banner (تصوير الطعام مدعوم بالذكاء الاصطناعي لحساب الماكروز وكميات الأكل) */}
       <div 
         onClick={() => setIsFoodLoggerOpen(true)}

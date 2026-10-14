@@ -12,8 +12,12 @@ import {
   Dumbbell, 
   CheckCircle2,
   Clock,
-  Volume2
+  Volume2,
+  TrendingUp,
+  History
 } from 'lucide-react';
+import { useFitness } from '../../context/FitnessContext';
+import { resolveExerciseVideo } from '../../utils/exerciseVideoMap';
 
 interface SetData {
   setNumber: number;
@@ -65,145 +69,9 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Verified HD 10-15s concise technique video mappings (direct action without intro/talking)
-  const getExerciseVideoDetails = () => {
-    const text = `${exercise.id} ${exercise.nameAr} ${exercise.nameEn}`.toLowerCase();
-    
-    if (text.includes('pec deck') || text.includes('butterfly') || text.includes('فراشة')) {
-      return {
-        ytId: 'Z5889KqB06U',
-        start: 10,
-        formNotes: 'تثبيت انثناء خفيف في الأكواع، عصر عضلات الصدر في المنتصف لثانية كاملة، وتفادي تقديم الأكتاف للأمام'
-      };
-    }
-    if (text.includes('rear delt') || text.includes('خلفي')) {
-      return {
-        ytId: 'EA7uJyZSZPU',
-        start: 8,
-        formNotes: 'الانحناء للأمام مع الحفاظ على استقامة الظهر، رفع الدمبل بالكوعين للأعلى لعزل الكتف الخلفي'
-      };
-    }
-    if (text.includes('hammer') || text.includes('شاكوش')) {
-      return {
-        ytId: 'zC3nLlEvin4',
-        start: 8,
-        formNotes: 'مسكة محايدة عمودية كالمطرقة، ثبات المرفقين تماماً، ورفع الدمبل لعصر عضلة البراكين والساعد'
-      };
-    }
-    if (text.includes('hack squat') || text.includes('هاك')) {
-      return {
-        ytId: '0tn5K9NlCfo',
-        start: 10,
-        formNotes: 'إسناد الظهر بالكامل على الوسادة، النزول لزاوية 90 درجة مع دفع قوي بكعبي القدمين'
-      };
-    }
-    if (text.includes('calf') || text.includes('calves') || text.includes('سمانة')) {
-      return {
-        ytId: 'N3awlEyY980',
-        start: 8,
-        formNotes: 'مدى حركي كامل للسمانة مع ثبات ثانية في القمة وأقصى إطالة في القاع'
-      };
-    }
-    if (text.includes('leg extension') || text.includes('فرد أرجل')) {
-      return {
-        ytId: 'YyvSfVjQeL0',
-        start: 8,
-        formNotes: 'ضبط وسادة الجهاز فوق الكاحل، رفع الساقين للأعلى وعصر الفخذ الأمامي لثانية، ونزول بطيء'
-      };
-    }
-    if (text.includes('leg curl') || text.includes('ثني أرجل')) {
-      return {
-        ytId: 'ELOCsoDSmrg',
-        start: 8,
-        formNotes: 'تثبيت الحوض على المسند، ثني الركبتين وسحب الوسادة نحو المؤخرة مع تحكم في النزول السلبي'
-      };
-    }
-    if (text.includes('leg press') || text.includes('ضغط أرجل')) {
-      return {
-        ytId: 'IZxyjW7MPJQ',
-        start: 10,
-        formNotes: 'القدمين بعرض الكتفين بمنتصف المنصة، نزول عميق محكوم ودفع دون إقفال مفاصل الركبة'
-      };
-    }
-    if (text.includes('bench') || text.includes('flat')) {
-      return {
-        ytId: 'SCVCLChPQFY',
-        start: 12,
-        formNotes: 'تثبيت لوحي الكتف للخلف، نزول محكوم في ثانيتين، ودفع انفجاري بالصدر دون قفل الكوع مفرطاً'
-      };
-    }
-    if (text.includes('incline')) {
-      return {
-        ytId: '8iPEnn-ltC8',
-        start: 10,
-        formNotes: 'زاوية مقعد 30 درجة، الأكواع بزاوية 60 درجة من الجذع، مع عصر الصدر العلوي في القمة'
-      };
-    }
-    if (text.includes('lateral') || text.includes('raise')) {
-      return {
-        ytId: '3VcKaXpzqRo',
-        start: 8,
-        formNotes: 'رفع الدمبل بالكوع مع ميلان خفيف للأمام، والنزول البطيء لعزل الكتف الجانبي'
-      };
-    }
-    if (text.includes('triceps') || text.includes('pushdown')) {
-      return {
-        ytId: 'vB5OHsJ3EME',
-        start: 14,
-        formNotes: 'تثبيت الكوعين بجانب الأضلاع، والضغط لأسفل مع فتح الحبل لعصر الرأس الطويل'
-      };
-    }
-    if (text.includes('squat')) {
-      return {
-        ytId: 'bEv6CCg2BC8',
-        start: 10,
-        formNotes: 'فتح الصدر، ثبات باطن القدمين، النزول المتوازي مع شد عضلات البطن Core'
-      };
-    }
-    if (text.includes('row')) {
-      return {
-        ytId: '6FZHJGzMFEc',
-        start: 8,
-        formNotes: 'انحناء الحوض بزاوية 45 درجة، سحب البار نحو السرة مع عصر لوحي الكتف'
-      };
-    }
-    if (text.includes('pulldown')) {
-      return {
-        ytId: 'CAwf7n6Luuc',
-        start: 12,
-        formNotes: 'قبضة واسعة مع إمالة الصدر للخلف قليلاً، وسحب الأكواع نحو الأضلاع لأسفل'
-      };
-    }
-    if (text.includes('bicep') || text.includes('curl')) {
-      return {
-        ytId: 'soxrZlIl35U',
-        start: 8,
-        formNotes: 'تثبيت المرفق بالكامل، الدوران الخارجي للرسغ (Supination) وعصر الباي في القمة'
-      };
-    }
-    if (text.includes('deadlift') || text.includes('rdl')) {
-      return {
-        ytId: '_oyxCn2iSjU',
-        start: 10,
-        formNotes: 'دفع الحوض للخلف مع انثناء ركبة خفيف، ثبات الظهر واستشعار التمدد في الفخذ الخلفي'
-      };
-    }
-    if (text.includes('shoulder press')) {
-      return {
-        ytId: 'qEwKCR5JCog',
-        start: 10,
-        formNotes: 'دفع عمودي بتحكم دون تقويس أسفل الظهر، ونزول الدمبل لمستوى الأذنين'
-      };
-    }
-
-    return {
-      ytId: 'SCVCLChPQFY',
-      start: 10,
-      formNotes: 'تأدية المدى الحركي الكامل بتركيز عالٍ مع ضبط سرعة النزول (Tempo 2-0-1)'
-    };
-  };
-
-  const videoData = getExerciseVideoDetails();
+  const { activeTrainee, getExerciseWeightHistory } = useFitness();
+  const videoData = resolveExerciseVideo(exercise);
+  const weightHistory = activeTrainee ? getExerciseWeightHistory(activeTrainee.id, exercise.id) : [];
   const completedCount = exercise.sets.filter(s => s.completed).length;
   const isFullyDone = completedCount === exercise.sets.length;
   const [videoKey, setVideoKey] = useState(0);
@@ -579,6 +447,42 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
                 );
               })}
             </div>
+          </div>
+
+          {/* Historical Exercise Weight Records (Request 16) */}
+          <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-emerald-400" />
+                <h4 className="text-xs font-bold text-white">سجل أوزانك السابق في هذا التمرين (Progressive Overload)</h4>
+              </div>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                {weightHistory.length > 0 ? `${weightHistory.length} جلسات مسجلة` : 'سجل جديد'}
+              </span>
+            </div>
+
+            {weightHistory.length > 0 ? (
+              <div className="space-y-2">
+                <div className="grid grid-cols-3 gap-2">
+                  {weightHistory.slice(0, 3).map((log) => (
+                    <div key={log.id} className="p-2.5 rounded-xl bg-neutral-900 border border-neutral-800 text-center">
+                      <span className="text-[10px] text-neutral-400 block">{log.date}</span>
+                      <strong className="text-xs font-mono font-black text-emerald-400 block my-0.5">
+                        {log.weightKg} كغ × {log.reps}
+                      </strong>
+                      <span className="text-[9px] text-neutral-500 font-mono">جولة #{log.setNumber}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[11px] text-neutral-400 leading-relaxed bg-neutral-900/60 p-2.5 rounded-xl border border-neutral-800/80">
+                  👑 <strong className="text-amber-400">العميل المثالي:</strong> تسجيل أوزانك دورياً يمنحك مؤشراً حقيقياً للزيادة التصاعدية في القوة وتفادي ثبات الأوزان.
+                </p>
+              </div>
+            ) : (
+              <div className="p-3 rounded-xl bg-neutral-900/60 border border-neutral-800 text-center text-xs text-neutral-400">
+                <span>سجل وزن جولتك اليوم وسيبدأ التطبيق برسم تطورك وحفظ أرقامك القياسية دورياً 📈</span>
+              </div>
+            )}
           </div>
 
         </div>

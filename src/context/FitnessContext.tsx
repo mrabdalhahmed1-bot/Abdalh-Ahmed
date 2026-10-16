@@ -178,6 +178,7 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
               if (t.fullName === 'يوسف جمال' || t.id === 'trainee-4') {
                 return {
                   ...t,
+                  avatarUrl: '/images/avatars/youssef.jpg',
                   program: PROGRAM_YOUSSEF_GAMAL,
                   customDietPlan: DIET_PLAN_YOUSSEF_GAMAL,
                   username: t.username || 'youssef_gamal',
@@ -194,14 +195,26 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
               if (t.fullName === 'محمد قاسم' || t.id === 'trainee-5') {
                 return {
                   ...t,
+                  avatarUrl: '/images/avatars/mohamed.jpg',
                   program: PROGRAM_MOHAMED_QASIM,
                   customDietPlan: DIET_PLAN_MOHAMED_QASIM,
                   username: t.username || 'mohamed_qasim',
                   accessPin: t.accessPin || '789012'
                 };
               }
+              if (t.id === 'trainee-1') return { ...t, avatarUrl: '/images/avatars/ahmed.jpg' };
+              if (t.id === 'trainee-2') return { ...t, avatarUrl: '/images/avatars/sara.jpg' };
+              if (t.id === 'trainee-3') return { ...t, avatarUrl: '/images/avatars/omar.jpg' };
               return t;
             });
+
+          // Automatically sync any missing trainees from INITIAL_TRAINEES (e.g. Mohamed Qasim)
+          const existingIds = new Set(updatedParsed.map((t: any) => t.id));
+          INITIAL_TRAINEES.forEach(initTrainee => {
+            if (!existingIds.has(initTrainee.id) && !deletedIds.has(initTrainee.id)) {
+              updatedParsed.push(initTrainee);
+            }
+          });
 
           return updatedParsed;
         }

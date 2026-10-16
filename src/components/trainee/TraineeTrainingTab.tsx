@@ -34,7 +34,7 @@ const WARMUP_DRILLS = [
     nameEn: 'Dynamic Arm Circles & Shoulder Dislocates',
     duration: '15 تكرار للأمام و 15 تكرار للخلف',
     instructions: 'تدوير الذراعين في دوائر واسعة ببطء وتحكم لتزييت مفصل الكتف وتنشيط الكفة المدورة.',
-    videoYtId: '3VcKaXpzqRo'
+    videoYtId: '1400UtT87SI'
   },
   {
     id: 'w2',
@@ -48,14 +48,14 @@ const WARMUP_DRILLS = [
     nameEn: 'Bodyweight Deep Squats & Hip Openers',
     duration: '12 تكرار مع ثبات ثانيتين بالأسفل',
     instructions: 'النزول لعمق مريح مع فتح الركبتين للخارج لتهيئة مفصل الحوض والركبتين والكاحل لضغط الأوزان.',
-    videoYtId: 'bEv6CCg2BC8'
+    videoYtId: 'aclHkVaku9U'
   },
   {
     id: 'w4',
     nameEn: 'Leg Swings (Front-to-Back & Lateral)',
     duration: '10 تكرارات لكل ساق',
     instructions: 'أرجحة محكومة بدون حركة عشوائية في الحوض لإطالة أوتار الركبة والعضلة الضامة وتنشيط الساقين.',
-    videoYtId: 'tlfahndNPPI'
+    videoYtId: '4_5Qp9FjJ5A'
   },
   {
     id: 'w5',
@@ -76,11 +76,12 @@ export const TraineeTrainingTab: React.FC<TraineeTrainingTabProps> = ({
     sendMessage,
     triggerCheer,
     triggerFullCompletion,
-    registerBackHandler
+    registerBackHandler,
+    advanceTraineeWorkoutDay
   } = useFitness();
 
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
-  const [activeSection, setActiveSection] = useState<'warmup' | 'workout' | 'mobility' | 'cardio'>('workout');
+  const [activeSection, setActiveSection] = useState<'warmup' | 'workout' | 'mobility' | 'cardio' | null>(null);
   const [isRestTimerOpen, setIsRestTimerOpen] = useState(false);
   const [restDuration, setRestDuration] = useState(90);
 
@@ -130,14 +131,7 @@ export const TraineeTrainingTab: React.FC<TraineeTrainingTabProps> = ({
     }
   }, [isRestTimerOpen, registerBackHandler]);
 
-  useEffect(() => {
-    if (activeSection !== 'workout' && !selectedExerciseForModal && !swapModalData && !isRestTimerOpen) {
-      return registerBackHandler(() => {
-        setActiveSection('workout');
-        return true;
-      });
-    }
-  }, [activeSection, selectedExerciseForModal, swapModalData, isRestTimerOpen, registerBackHandler]);
+
 
   const [mobilityCardioModalData, setMobilityCardioModalData] = useState<{
     type: 'mobility' | 'cardio';
@@ -176,6 +170,15 @@ export const TraineeTrainingTab: React.FC<TraineeTrainingTabProps> = ({
       });
     }
   }, [selectedWarmupVideo, registerBackHandler]);
+
+  useEffect(() => {
+    if (activeSection !== null && !selectedExerciseForModal && !swapModalData && !isRestTimerOpen && !selectedWarmupVideo && !mobilityCardioModalData) {
+      return registerBackHandler(() => {
+        setActiveSection(null);
+        return true;
+      });
+    }
+  }, [activeSection, selectedExerciseForModal, swapModalData, isRestTimerOpen, selectedWarmupVideo, mobilityCardioModalData, registerBackHandler]);
 
   // Local state for set inputs: { [setKey]: { weight: number, reps: number } }
   const [setInputs, setSetInputs] = useState<Record<string, { weight: string; reps: string }>>({});
@@ -459,56 +462,219 @@ export const TraineeTrainingTab: React.FC<TraineeTrainingTabProps> = ({
         </div>
       </div>
 
-      {/* 4 Section Selector Tabs in Dark Theme with Matching Domain Colors (Request 3) */}
-      <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
-        <button
-          onClick={() => setActiveSection('warmup')}
-          className={`py-3 px-1.5 sm:px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer border ${
-            activeSection === 'warmup'
-              ? 'bg-amber-500 text-neutral-950 border-amber-400 font-black shadow-md shadow-amber-500/20'
-              : 'bg-neutral-900/80 text-neutral-300 border-neutral-800 hover:bg-neutral-800 hover:text-white'
-          }`}
-        >
-          <Zap className="w-3.5 h-3.5 text-amber-400" />
-          <span>الإحماء</span>
-        </button>
+      {/* 4 Large Choices Cards - Initial view when opening training tab (Request 11) */}
+      {activeSection === null && (
+        <div className="space-y-3.5">
+          <div className="text-right pb-1">
+            <span className="text-xs text-neutral-400">
+              اختر أحد الأقسام الأربعة لعرض التمارين والتنفيذ:
+            </span>
+          </div>
 
-        <button
-          onClick={() => setActiveSection('workout')}
-          className={`py-3 px-1.5 sm:px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer border ${
-            activeSection === 'workout'
-              ? 'bg-emerald-500 text-neutral-950 border-emerald-400 font-black shadow-md shadow-emerald-500/20'
-              : 'bg-neutral-900/80 text-neutral-300 border-neutral-800 hover:bg-neutral-800 hover:text-white'
-          }`}
-        >
-          <Dumbbell className="w-3.5 h-3.5 text-emerald-400" />
-          <span>التمرين</span>
-        </button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            {/* Box 1: الإحماء */}
+            <div
+              onClick={() => {
+                setActiveSection('warmup');
+                scrollToTop();
+              }}
+              className="bg-gradient-to-br from-neutral-900 via-neutral-900 to-amber-950/20 border border-amber-500/30 hover:border-amber-400 p-5 rounded-3xl cursor-pointer transition-all shadow-md hover:scale-[1.01] group flex flex-col justify-between min-h-[160px]"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
+                    <Zap className="w-6 h-6" />
+                  </div>
+                  <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                    المربع 1
+                  </span>
+                </div>
+                <h3 className="text-lg font-black text-white group-hover:text-amber-400 transition-colors">
+                  الإحماء الديناميكي
+                </h3>
+                <p className="text-xs text-neutral-400 mt-1 leading-relaxed">
+                  تهيئة المفاصل وتنشيط الدورة الدموية لمنع الإصابات قبل حمل الأوزان
+                </p>
+              </div>
+              <div className="flex items-center justify-between pt-3 border-t border-neutral-800/80 text-xs">
+                <span className="text-neutral-400 font-mono">4 حركات تهيئة</span>
+                <span className="text-amber-400 font-bold flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                  <span>دخول الإحماء</span>
+                  <span>←</span>
+                </span>
+              </div>
+            </div>
 
-        <button
-          onClick={() => setActiveSection('mobility')}
-          className={`py-3 px-1.5 sm:px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer border ${
-            activeSection === 'mobility'
-              ? 'bg-teal-500 text-neutral-950 border-teal-400 font-black shadow-md shadow-teal-500/20'
-              : 'bg-neutral-900/80 text-neutral-300 border-neutral-800 hover:bg-neutral-800 hover:text-white'
-          }`}
-        >
-          <Activity className="w-3.5 h-3.5 text-teal-400" />
-          <span>المرونة</span>
-        </button>
+            {/* Box 2: التمرين */}
+            <div
+              onClick={() => {
+                setActiveSection('workout');
+                scrollToTop();
+              }}
+              className="bg-gradient-to-br from-neutral-900 via-neutral-900 to-emerald-950/25 border border-emerald-500/40 hover:border-emerald-400 p-5 rounded-3xl cursor-pointer transition-all shadow-md hover:scale-[1.01] group flex flex-col justify-between min-h-[160px]"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
+                    <Dumbbell className="w-6 h-6" />
+                  </div>
+                  <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-500 text-neutral-950 shadow-xs">
+                    المربع 2 (الأساسي)
+                  </span>
+                </div>
+                <h3 className="text-lg font-black text-white group-hover:text-emerald-400 transition-colors">
+                  جدول التمارين المعتمد
+                </h3>
+                <p className="text-xs text-neutral-400 mt-1 leading-relaxed">
+                  تمارين المقاومة والحديد مع الأوزان والعدات وأنماط السوبر سيت المعتمدة
+                </p>
+              </div>
+              <div className="flex items-center justify-between pt-3 border-t border-neutral-800/80 text-xs">
+                <span className="text-emerald-400 font-bold">{currentDay.exercises.length} تمارين · {currentDay.dayName.split(':')[0]}</span>
+                <span className="text-emerald-400 font-bold flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                  <span>دخول التمارين</span>
+                  <span>←</span>
+                </span>
+              </div>
+            </div>
 
-        <button
-          onClick={() => setActiveSection('cardio')}
-          className={`py-3 px-1.5 sm:px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer border ${
-            activeSection === 'cardio'
-              ? 'bg-rose-500 text-neutral-950 border-rose-400 font-black shadow-md shadow-rose-500/20'
-              : 'bg-neutral-900/80 text-neutral-300 border-neutral-800 hover:bg-neutral-800 hover:text-white'
-          }`}
-        >
-          <Flame className="w-3.5 h-3.5 text-rose-400" />
-          <span>اللياقة</span>
-        </button>
-      </div>
+            {/* Box 3: المرونة */}
+            <div
+              onClick={() => {
+                setActiveSection('mobility');
+                scrollToTop();
+              }}
+              className="bg-gradient-to-br from-neutral-900 via-neutral-900 to-teal-950/20 border border-teal-500/30 hover:border-teal-400 p-5 rounded-3xl cursor-pointer transition-all shadow-md hover:scale-[1.01] group flex flex-col justify-between min-h-[160px]"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-12 h-12 rounded-2xl bg-teal-500/15 border border-teal-500/30 text-teal-400 flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
+                    <Activity className="w-6 h-6" />
+                  </div>
+                  <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-teal-500/15 text-teal-400 border border-teal-500/30">
+                    المربع 3
+                  </span>
+                </div>
+                <h3 className="text-lg font-black text-white group-hover:text-teal-400 transition-colors">
+                  المرونة والاستطالة
+                </h3>
+                <p className="text-xs text-neutral-400 mt-1 leading-relaxed">
+                  تحسين المدى الحركي للمفاصل وتفريغ حمض اللاكتيك لتسريع الاستشفاء العضلي
+                </p>
+              </div>
+              <div className="flex items-center justify-between pt-3 border-t border-neutral-800/80 text-xs">
+                <span className="text-neutral-400 font-mono">3 تمارين إطالة حركية</span>
+                <span className="text-teal-400 font-bold flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                  <span>دخول المرونة</span>
+                  <span>←</span>
+                </span>
+              </div>
+            </div>
+
+            {/* Box 4: اللياقة */}
+            <div
+              onClick={() => {
+                setActiveSection('cardio');
+                scrollToTop();
+              }}
+              className="bg-gradient-to-br from-neutral-900 via-neutral-900 to-rose-950/20 border border-rose-500/30 hover:border-rose-400 p-5 rounded-3xl cursor-pointer transition-all shadow-md hover:scale-[1.01] group flex flex-col justify-between min-h-[160px]"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-12 h-12 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-400 flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
+                    <Flame className="w-6 h-6" />
+                  </div>
+                  <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30">
+                    المربع 4
+                  </span>
+                </div>
+                <h3 className="text-lg font-black text-white group-hover:text-rose-400 transition-colors">
+                  اللياقة والكارديو
+                </h3>
+                <p className="text-xs text-neutral-400 mt-1 leading-relaxed">
+                  بروتوكول حرق الدهون ورفع كفاءة الجهاز الدوري التنفسي (سير ودراجة)
+                </p>
+              </div>
+              <div className="flex items-center justify-between pt-3 border-t border-neutral-800/80 text-xs">
+                <span className="text-neutral-400 font-mono">سير كهربائي ودراجة</span>
+                <span className="text-rose-400 font-bold flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                  <span>دخول اللياقة</span>
+                  <span>←</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Top Header & Switcher when inside one of the 4 sections */}
+      {activeSection !== null && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setActiveSection(null)}
+              className="px-3.5 py-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-neutral-200 hover:text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+            >
+              <ChevronLeft className="w-4 h-4 stroke-[2.5]" />
+              <span>← العودة للاختيارات الأربعة</span>
+            </button>
+            <span className="text-[11px] text-neutral-400 font-medium">
+              {activeSection === 'warmup' ? 'المربع 1: الإحماء' : activeSection === 'workout' ? 'المربع 2: التمارين' : activeSection === 'mobility' ? 'المربع 3: المرونة' : 'المربع 4: اللياقة'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
+            <button
+              onClick={() => setActiveSection('warmup')}
+              className={`py-2.5 px-1 sm:px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer border ${
+                activeSection === 'warmup'
+                  ? 'bg-amber-500 text-neutral-950 border-amber-400 font-black shadow-md shadow-amber-500/20'
+                  : 'bg-neutral-900/80 text-neutral-300 border-neutral-800 hover:bg-neutral-800 hover:text-white'
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-400" />
+              <span>الإحماء</span>
+            </button>
+
+            <button
+              onClick={() => setActiveSection('workout')}
+              className={`py-2.5 px-1 sm:px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer border ${
+                activeSection === 'workout'
+                  ? 'bg-emerald-500 text-neutral-950 border-emerald-400 font-black shadow-md shadow-emerald-500/20'
+                  : 'bg-neutral-900/80 text-neutral-300 border-neutral-800 hover:bg-neutral-800 hover:text-white'
+              }`}
+            >
+              <Dumbbell className="w-3.5 h-3.5 text-emerald-400" />
+              <span>التمرين</span>
+            </button>
+
+            <button
+              onClick={() => setActiveSection('mobility')}
+              className={`py-2.5 px-1 sm:px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer border ${
+                activeSection === 'mobility'
+                  ? 'bg-teal-500 text-neutral-950 border-teal-400 font-black shadow-md shadow-teal-500/20'
+                  : 'bg-neutral-900/80 text-neutral-300 border-neutral-800 hover:bg-neutral-800 hover:text-white'
+              }`}
+            >
+              <Activity className="w-3.5 h-3.5 text-teal-400" />
+              <span>المرونة</span>
+            </button>
+
+            <button
+              onClick={() => setActiveSection('cardio')}
+              className={`py-2.5 px-1 sm:px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer border ${
+                activeSection === 'cardio'
+                  ? 'bg-rose-500 text-neutral-950 border-rose-400 font-black shadow-md shadow-rose-500/20'
+                  : 'bg-neutral-900/80 text-neutral-300 border-neutral-800 hover:bg-neutral-800 hover:text-white'
+              }`}
+            >
+              <Flame className="w-3.5 h-3.5 text-rose-400" />
+              <span>اللياقة</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* SECTION 0: WARMUP (الإحماء الديناميكي وتهيئة المفاصل) */}
       {activeSection === 'warmup' && (
@@ -684,21 +850,21 @@ export const TraineeTrainingTab: React.FC<TraineeTrainingTabProps> = ({
                   key={ex.id}
                   className={`p-4 rounded-2xl border transition-all shadow-xs space-y-3 ${
                     ex.isSuperSet
-                      ? 'border-rose-500/40 bg-gradient-to-b from-neutral-900 via-rose-950/10 to-neutral-900 shadow-rose-950/20'
+                      ? 'border-emerald-500/40 bg-gradient-to-b from-neutral-900 via-emerald-950/15 to-neutral-900 shadow-emerald-950/20'
                       : 'border-neutral-800 bg-neutral-900/90'
                   }`}
                 >
-                  {/* Super-Set Top Badge */}
+                  {/* Super-Set Top Badge (Request 14: Green Ss) */}
                   {ex.isSuperSet && (
-                    <div className="flex items-center justify-between pb-2 border-b border-rose-500/20 text-xs">
+                    <div className="flex items-center justify-between pb-2 border-b border-emerald-500/20 text-xs">
                       <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded-full bg-rose-500 text-neutral-950 text-[10px] font-black flex items-center gap-1">
-                          <span>🔥</span>
-                          <span>سوبر سيت (Super-Set)</span>
+                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-500 text-neutral-950 text-[10px] font-black flex items-center gap-1 shadow-xs">
+                          <span>Ss</span>
+                          <span>سوبر سيت</span>
                         </span>
-                        <span className="text-rose-300 font-bold text-xs">{ex.superSetName || 'تمرينان مدمجان في خانة واحدة'}</span>
+                        <span className="text-emerald-300 font-bold text-xs">{ex.superSetName || 'تمرينان مدمجان في خانة واحدة'}</span>
                       </div>
-                      <span className="text-[10px] text-neutral-400">دون راحة بين التمرينين</span>
+                      <span className="text-[10px] text-emerald-400/90 font-medium">دون راحة بين التمرينين</span>
                     </div>
                   )}
 
@@ -708,7 +874,7 @@ export const TraineeTrainingTab: React.FC<TraineeTrainingTabProps> = ({
                       <div className="flex items-center gap-2">
                         <span className={`w-6 h-6 rounded-lg font-bold text-xs flex items-center justify-center ${
                           ex.isSuperSet 
-                            ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40' 
+                            ? 'bg-emerald-500 text-neutral-950 font-black' 
                             : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                         }`}>
                           {exIdx + 1}
@@ -854,8 +1020,20 @@ export const TraineeTrainingTab: React.FC<TraineeTrainingTabProps> = ({
             })}
           </div>
 
-          {/* Action button to proceed to mobility schedule (Request 14) */}
-          <div className="pt-3">
+          {/* Action buttons at bottom of workout (Request 10 & 14) */}
+          <div className="pt-3 space-y-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                advanceTraineeWorkoutDay(activeTrainee.id);
+                scrollToTop();
+              }}
+              className="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-black text-xs shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <CheckCircle2 className="w-4 h-4 stroke-[3]" />
+              <span>إنهاء تمرين اليوم واكتمال الجدول ✅ (الانتقال لليوم التالي)</span>
+            </button>
+
             <button
               type="button"
               onClick={() => {
@@ -863,7 +1041,7 @@ export const TraineeTrainingTab: React.FC<TraineeTrainingTabProps> = ({
                 scrollToTop();
                 triggerCheer('عاش يا بطل! ننتقل لتمارين المرونة والاستشفاء 🧘‍♂️💪');
               }}
-              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-teal-500 to-cyan-400 hover:from-teal-400 hover:to-cyan-300 text-neutral-950 font-black text-xs shadow-lg shadow-teal-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-3 rounded-2xl bg-teal-500/15 hover:bg-teal-500/25 text-teal-300 border border-teal-500/40 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <span>الإنتقال إلى جدول المرونة 🧘‍♂️</span>
               <ChevronLeft className="w-4 h-4 stroke-[3]" />

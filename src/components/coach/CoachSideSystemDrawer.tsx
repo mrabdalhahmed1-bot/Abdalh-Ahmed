@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useFitness } from '../../context/FitnessContext';
-import { TraineeProfile, WorkoutProgram, MacroGoals, WorkoutDay, WorkoutExercise } from '../../types/fitness';
+import { TraineeProfile, WorkoutProgram, MacroGoals, WorkoutDay, WorkoutExercise, MasterExercise } from '../../types/fitness';
 import { AddExerciseModal } from './AddExerciseModal';
 import { 
   X, 
@@ -17,7 +17,9 @@ import {
   Save,
   Trash2,
   Droplets,
-  Edit3
+  Edit3,
+  RefreshCw,
+  Search
 } from 'lucide-react';
 
 interface CoachSideSystemDrawerProps {
@@ -35,7 +37,8 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
     updateTraineeMacros, 
     updateTraineeProfile,
     exerciseCatalog,
-    triggerCheer 
+    triggerCheer,
+    dispatchMotivationalUpdate
   } = useFitness();
 
   // Active Tab: 'actual' (البرنامج الفعلي للمتدرب) | 'programs' | 'diet' | 'fitness' | 'flexibility'
@@ -44,6 +47,10 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
   // Selected Trainee for displaying and applying changes
   const [targetTraineeId, setTargetTraineeId] = useState<string>(trainees[0]?.id || 'trainee-4');
   const [appliedNotification, setAppliedNotification] = useState<string | null>(null);
+
+  // Sub-modal for swapping an exercise in the active program (Request 1)
+  const [swappingExerciseTarget, setSwappingExerciseTarget] = useState<{ dayIdx: number; exIdx: number } | null>(null);
+  const [swapSearchQuery, setSwapSearchQuery] = useState('');
 
   // Sub-modal for adding exercise to library
   const [isAddExerciseModalOpen, setIsAddExerciseModalOpen] = useState(false);
@@ -110,14 +117,70 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
     setTimeout(() => setAppliedNotification(null), 3500);
   };
 
-  // Save manual modifications to the trainee's actual workout program
+  // Swap exercise handler (Request 1)
+  const handleSwapExercise = (dayIdx: number, exIdx: number, selectedMaster: MasterExercise) => {
+    if (!editableProgram) return;
+    const updated = { ...editableProgram };
+    const currentEx = updated.days[dayIdx].exercises[exIdx];
+    const oldName = currentEx.nameAr;
+    updated.days[dayIdx].exercises[exIdx] = {
+      ...currentEx,
+      nameAr: selectedMaster.nameAr,
+      nameEn: selectedMaster.nameEn,
+      primaryMuscle: selectedMaster.primaryMuscle,
+      equipment: selectedMaster.equipment,
+      thumbnailUrl: selectedMaster.thumbnailUrl || currentEx.thumbnailUrl,
+      executionCues: selectedMaster.executionCues || currentEx.executionCues,
+    };
+    setEditableProgram(updated);
+    setSwappingExerciseTarget(null);
+    setSwapSearchQuery('');
+    if (targetTrainee) {
+      dispatchMotivationalUpdate(
+        targetTrainee.id,
+        'تبديل تمرين وتحديث الخطة',
+        `تم استبدال تمرين "${oldName}" بالتمرين البديل "${selectedMaster.nameAr}" لتحفيز النمو العضلي وتجاوز مرحلة الثبات.`
+      );
+    }
+    showNotification(`تم استبدال "${oldName}" بـ "${selectedMaster.nameAr}" بنجاح 🔄`);
+  };
+
+  // Set exercise type handler (Super Set Ss / Drop Set Ds / Normal) (Request 1 & 14)
+  const handleSetExerciseType = (dayIdx: number, exIdx: number, type: 'normal' | 'superset' | 'dropset') => {
+    if (!editableProgram) return;
+    const updated = { ...editableProgram };
+    const ex = updated.days[dayIdx].exercises[exIdx];
+    if (type === 'superset') {
+      ex.isSuperSet = true;
+      (ex as any).isDropSet = false;
+      ex.superSetName = 'سوبر سيت (Ss) 🔥';
+    } else if (type === 'dropset') {
+      ex.isSuperSet = false;
+      (ex as any).isDropSet = true;
+      (ex as any).dropSetNotes = 'دروب سيت (Ds) ⚡';
+    } else {
+      ex.isSuperSet = false;
+      (ex as any).isDropSet = false;
+      ex.superSetName = undefined;
+      (ex as any).dropSetNotes = undefined;
+    }
+    setEditableProgram(updated);
+    showNotification(`تم ضبط نمط التمرين إلى ${type === 'superset' ? 'سوبر سيت (Ss) 🟢' : type === 'dropset' ? 'دروب سيت (Ds) ⚡' : 'عادي'} بنجاح`);
+  };
+
+  // Save manual modifications to the trainee's actual workout program (Request 2 & 12)
   const handleSaveActualProgram = () => {
     if (!editableProgram || !targetTrainee) return;
     updateTraineeProgram(targetTrainee.id, editableProgram);
+    dispatchMotivationalUpdate(
+      targetTrainee.id,
+      'الجدول التدريبي المعتمد',
+      `تم تحديث وضبط التمارين والجولات والأوزان لليوم ${selectedDayIdx + 1} بنجاح.`
+    );
     showNotification(`تم حفظ التعديلات اليدوية لبرنامج تمارين ${targetTrainee.fullName} بنجاح ✅`);
   };
 
-  // Save manual modifications to nutrition and water
+  // Save manual modifications to nutrition and water (Request 2 & 12)
   const handleSaveActualMacros = () => {
     if (!targetTrainee) return;
     const updated: MacroGoals = {
@@ -125,10 +188,15 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
       waterLiters: editableWater
     };
     updateTraineeMacros(targetTrainee.id, updated);
+    dispatchMotivationalUpdate(
+      targetTrainee.id,
+      'الخطة الغذائية والماكروز',
+      `تم تحديث السعرات اليومية (${updated.calories} Cal) والبروتين (${updated.proteinGrams}g) واحتياج الماء (${editableWater} لتر).`
+    );
     showNotification(`تم حفظ أهداف التغذية والماء لـ ${targetTrainee.fullName} بنجاح 🥗💧`);
   };
 
-  // Save manual modifications to warm-up, mobility, and cardio protocols
+  // Save manual modifications to warm-up, mobility, and cardio protocols (Request 2 & 12)
   const handleSaveProtocols = () => {
     if (!targetTrainee) return;
     try {
@@ -146,6 +214,11 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
         stepGoal: editableStepGoal
       });
     }
+    dispatchMotivationalUpdate(
+      targetTrainee.id,
+      'بروتوكولات الإحماء والاستشفاء والكارديو',
+      'تم تحديث بروتوكول الإحماء الديناميكي، الاستشفاء الحركي، وهدف الخطوات اليومي.'
+    );
     showNotification(`تم حفظ بروتوكولات الإحماء والمرونة واللياقة لـ ${targetTrainee.fullName} بنجاح ✅`);
   };
 
@@ -640,17 +713,33 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
                     )}
 
                     {/* Exercises List in Selected Day */}
-                    <div className="space-y-2">
+                    <div className="space-y-2.5">
                       {editableProgram.days[selectedDayIdx]?.exercises.map((ex, exIdx) => {
                         const targetSet = ex.sets[0] || { targetWeight: 50, targetReps: 10 };
+                        const isSuperSet = !!ex.isSuperSet;
+                        const isDropSet = !!(ex as any).isDropSet;
+
                         return (
                           <div
                             key={ex.id || exIdx}
-                            className="bg-neutral-900/90 border border-neutral-800 rounded-xl p-3 space-y-2"
+                            className={`border rounded-xl p-3 space-y-2.5 transition-all ${
+                              isSuperSet
+                                ? 'bg-gradient-to-r from-emerald-950/40 via-neutral-900 to-neutral-900 border-emerald-500/50 shadow-sm'
+                                : isDropSet
+                                ? 'bg-gradient-to-r from-amber-950/40 via-neutral-900 to-neutral-900 border-amber-500/50 shadow-sm'
+                                : 'bg-neutral-900/90 border-neutral-800'
+                            }`}
                           >
+                            {/* Exercise Header & Actions */}
                             <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2 flex-1">
-                                <span className="w-5 h-5 rounded-md bg-emerald-500/20 text-emerald-400 text-[11px] font-mono font-bold flex items-center justify-center shrink-0">
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <span className={`w-5 h-5 rounded-md text-[11px] font-mono font-bold flex items-center justify-center shrink-0 ${
+                                  isSuperSet
+                                    ? 'bg-emerald-500 text-neutral-950'
+                                    : isDropSet
+                                    ? 'bg-amber-500 text-neutral-950'
+                                    : 'bg-emerald-500/20 text-emerald-400'
+                                }`}>
                                   {exIdx + 1}
                                 </span>
                                 <input
@@ -661,18 +750,76 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
                                 />
                               </div>
 
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveExercise(selectedDayIdx, exIdx)}
-                                className="p-1 rounded-lg text-neutral-500 hover:text-rose-400 hover:bg-neutral-800 transition-colors cursor-pointer"
-                                title="حذف التمرين"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => setSwappingExerciseTarget({ dayIdx: selectedDayIdx, exIdx })}
+                                  className="px-2 py-1 rounded-lg bg-neutral-800 hover:bg-neutral-750 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                                  title="تبديل هذا التمرين بتمرين آخر من مكتبة التمارين مع إمكانية البحث"
+                                >
+                                  <RefreshCw className="w-3 h-3" />
+                                  <span>تبديل التمرين</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveExercise(selectedDayIdx, exIdx)}
+                                  className="p-1 rounded-lg text-neutral-500 hover:text-rose-400 hover:bg-neutral-800 transition-colors cursor-pointer"
+                                  title="حذف التمرين"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Set Type Selector: Normal vs Super Set (Ss) vs Drop Set (Ds) (Request 1 & Request 14) */}
+                            <div className="flex items-center justify-between gap-2 pt-1 border-t border-neutral-800/60 text-[11px]">
+                              <span className="text-[10px] text-neutral-400 font-medium">نمط التمرين:</span>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleSetExerciseType(selectedDayIdx, exIdx, 'normal')}
+                                  className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all cursor-pointer ${
+                                    !isSuperSet && !isDropSet
+                                      ? 'bg-neutral-700 text-white border border-neutral-600'
+                                      : 'bg-neutral-950 text-neutral-400 hover:text-white border border-neutral-800'
+                                  }`}
+                                >
+                                  عادي
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleSetExerciseType(selectedDayIdx, exIdx, 'superset')}
+                                  className={`px-2 py-0.5 rounded-md text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer ${
+                                    isSuperSet
+                                      ? 'bg-emerald-500 text-neutral-950 shadow-sm border border-emerald-400'
+                                      : 'bg-emerald-950/40 text-emerald-400 border border-emerald-800/60 hover:bg-emerald-900/50'
+                                  }`}
+                                  title="سوبر سيت (Ss) - باللون الأخضر"
+                                >
+                                  <span>Ss</span>
+                                  <span>سوبر سيت</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleSetExerciseType(selectedDayIdx, exIdx, 'dropset')}
+                                  className={`px-2 py-0.5 rounded-md text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer ${
+                                    isDropSet
+                                      ? 'bg-amber-500 text-neutral-950 shadow-sm border border-amber-400'
+                                      : 'bg-amber-950/40 text-amber-400 border border-amber-800/60 hover:bg-amber-900/50'
+                                  }`}
+                                  title="دروب سيت (Ds)"
+                                >
+                                  <span>Ds</span>
+                                  <span>دروب سيت</span>
+                                </button>
+                              </div>
                             </div>
 
                             {/* Sets, Reps, Weight inline controls */}
-                            <div className="grid grid-cols-3 gap-2 text-[11px] pt-1">
+                            <div className="grid grid-cols-3 gap-2 text-[11px] pt-1 border-t border-neutral-800/60">
                               <div>
                                 <span className="text-neutral-400 block mb-0.5 text-[10px]">الجولات:</span>
                                 <input
@@ -1126,6 +1273,85 @@ export const CoachSideSystemDrawer: React.FC<CoachSideSystemDrawerProps> = ({
         </div>
 
       </div>
+
+      {/* Swap Exercise Modal with Live Search and Flexible Dropdown Selection (Request 1) */}
+      {swappingExerciseTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="w-full max-w-lg bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="p-4 border-b border-neutral-800 bg-neutral-950 flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-black text-white flex items-center gap-2">
+                  <RefreshCw className="w-4 h-4 text-emerald-400" />
+                  <span>تبديل التمرين واختيار بديل مناسب</span>
+                </h4>
+                <p className="text-[11px] text-neutral-400 mt-0.5">
+                  اختر التمرين الجديد من القائمة المنسدلة أو ابحث باسم العضلة أو التمرين
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSwappingExerciseTarget(null);
+                  setSwapSearchQuery('');
+                }}
+                className="w-7 h-7 rounded-lg bg-neutral-800 hover:bg-neutral-700 flex items-center justify-center text-neutral-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="p-3 bg-neutral-950/60 border-b border-neutral-800">
+              <div className="relative">
+                <Search className="w-4 h-4 text-emerald-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={swapSearchQuery}
+                  onChange={(e) => setSwapSearchQuery(e.target.value)}
+                  placeholder="ابحث باسم التمرين (صدر، بنش، باي، سحب، أرجل)..."
+                  className="w-full bg-neutral-900 border border-neutral-700 focus:border-emerald-500 rounded-xl pr-9 pl-3 py-2 text-xs text-white placeholder-neutral-500 outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Exercises List */}
+            <div className="p-3 overflow-y-auto space-y-1.5 flex-1">
+              {exerciseCatalog
+                .filter(ex => {
+                  if (!swapSearchQuery.trim()) return true;
+                  const q = swapSearchQuery.toLowerCase();
+                  return (
+                    ex.nameAr.toLowerCase().includes(q) ||
+                    ex.nameEn.toLowerCase().includes(q) ||
+                    ex.primaryMuscle.toLowerCase().includes(q)
+                  );
+                })
+                .map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => handleSwapExercise(swappingExerciseTarget.dayIdx, swappingExerciseTarget.exIdx, item)}
+                    className="w-full p-2.5 rounded-xl bg-neutral-950/70 hover:bg-neutral-800 border border-neutral-850 hover:border-emerald-500/50 flex items-center justify-between text-right transition-all group cursor-pointer"
+                  >
+                    <div>
+                      <div className="font-bold text-xs text-white group-hover:text-emerald-400 transition-colors">
+                        {item.nameAr}
+                      </div>
+                      <div className="text-[10px] text-neutral-400 flex items-center gap-2 mt-0.5">
+                        <span className="font-mono">{item.nameEn}</span>
+                        <span>•</span>
+                        <span className="text-emerald-400">{item.primaryMuscle}</span>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold group-hover:bg-emerald-500 group-hover:text-neutral-950 transition-all shrink-0">
+                      اختيار البديل ✓
+                    </span>
+                  </button>
+                ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Submodal for creating exercises */}
       <AddExerciseModal

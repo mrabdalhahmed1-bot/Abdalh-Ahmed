@@ -75,12 +75,14 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({
     weeklySleepHours,
     messages,
     deleteTrainee,
-    triggerCheer
+    triggerCheer,
+    requestTraineeCheckIn
   } = useFitness();
 
   const swapMessages = messages.filter(m => m.text.includes('استبدال') || m.text.includes('بديل'));
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'missing' | 'active'>('all');
   
@@ -244,13 +246,13 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({
         <span className="text-[11px] font-bold hidden sm:inline">لوحة المنظومة ☰</span>
       </button>
 
-      {/* Top Banner / Coach Persona Greeting */}
+      {/* Top Banner / Coach Persona Greeting - Compact & Space-Saving (Request 7) */}
       <div className="relative rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-900 shadow-xl">
         <div className="absolute inset-0 bg-gradient-to-r from-emerald-950/40 via-neutral-900/90 to-neutral-950 -z-0 pointer-events-none" />
         
-        <div className="relative z-10 p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-4 sm:gap-5">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden border-2 border-emerald-500/50 shadow-xl shadow-emerald-500/10 shrink-0">
+        <div className="relative z-10 p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden border-2 border-emerald-500/50 shadow-lg shadow-emerald-500/10 shrink-0">
               <img 
                 src={coachInfo.avatar} 
                 alt={coachInfo.name} 
@@ -259,139 +261,159 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({
               />
             </div>
             <div>
-              <div className="flex items-center gap-2 mb-1">
-                <h1 className="text-xl sm:text-2xl font-black text-white">{coachInfo.name}</h1>
+              <div className="flex items-center gap-2 mb-0.5">
+                <h1 className="text-lg sm:text-xl font-black text-white">{coachInfo.name}</h1>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-bold">
+                  المدرب المعتمد 👑
+                </span>
               </div>
-              <p className="text-xs sm:text-sm text-neutral-400 max-w-xl leading-relaxed">
+              <p className="text-xs text-neutral-400 max-w-md line-clamp-1">
                 {coachInfo.title} · متابعة تدريبية دقيقة، ضبط الماكروز الأسبوعي، وتحليل مؤشرات الأداء الحيوية.
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* 3-Dash System Hub Trigger Button (المطلوب: خانة تحكم داخل 3 شرط) */}
+          {/* Compact side-by-side action buttons (Request 7) */}
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setIsSideSystemDrawerOpen(true)}
-              className="flex items-center gap-2 px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-neutral-950 font-black rounded-xl text-xs shadow-lg shadow-emerald-500/25 transition-all cursor-pointer group"
+              className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-neutral-950 font-black rounded-xl text-xs shadow-md shadow-emerald-500/20 transition-all cursor-pointer group"
               title="لوحة تحكم لإنشاء منظومة للتحكم في برامج التدريب و الدايت و الفيتنس و المرونة ☰"
             >
-              <span className="text-base font-black leading-none group-hover:rotate-90 transition-transform">☰</span>
+              <span className="text-sm font-black leading-none group-hover:rotate-90 transition-transform">☰</span>
               <span>لوحة المنظومة ☰</span>
             </button>
 
             <button
+              onClick={() => setShowNewTraineeModal(true)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold rounded-xl text-xs shadow-md shadow-emerald-500/20 transition-all cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>إضافة متدرب</span>
+            </button>
+
+            <button
               onClick={() => setShowCoachProfileModal(true)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white rounded-xl text-xs font-semibold border border-neutral-700 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white rounded-xl text-xs font-semibold border border-neutral-700 transition-colors cursor-pointer"
               title="تعديل اسم الكوتش وبيانات التواصل"
             >
               <Settings className="w-3.5 h-3.5 text-emerald-400" />
               <span>تعديل حسابي</span>
             </button>
-            <button
-              onClick={() => setShowNewTraineeModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold rounded-xl text-xs shadow-lg shadow-emerald-500/25 transition-all"
-            >
-              <Plus className="w-4 h-4" />
-              <span>إضافة متدرب جديد</span>
-            </button>
+
             {onOpenInstallGuide && (
               <button
                 onClick={onOpenInstallGuide}
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
-                title="تثبيت التطبيق على الجوال ومركز التحكم"
+                className="flex items-center gap-1 px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                title="تثبيت التطبيق على الجوال"
               >
                 <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
-                <span>تثبيت التطبيق 📱</span>
+                <span>تثبيت 📱</span>
               </button>
             )}
+
             <button
               onClick={onOpenChat}
-              className="relative px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-xl text-xs font-semibold border border-neutral-700 transition-colors flex items-center gap-1.5"
+              className="relative px-3 py-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-xl text-xs font-semibold border border-neutral-700 transition-colors flex items-center gap-1.5 cursor-pointer"
             >
-              <span>فتح المحادثات</span>
+              <span>المحادثات</span>
               {swapMessages.length > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full bg-emerald-500 text-neutral-950 font-black text-[10px] flex items-center gap-0.5 shadow-sm animate-pulse">
+                <span className="px-1.5 py-0.2 rounded-full bg-emerald-500 text-neutral-950 font-black text-[10px] flex items-center gap-0.5 shadow-sm animate-pulse">
                   <span>{swapMessages.length}</span>
-                  <span>طلب</span>
                 </span>
               )}
             </button>
           </div>
         </div>
 
-        {/* Trainee Search Bar inside Coach Profile Top Card */}
-        <div className="relative z-20 px-6 sm:px-8 pb-5 pt-3 border-t border-neutral-800/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-neutral-950/40">
-          <div className="relative flex-1 max-w-md">
+        {/* Trainee Search Bar with Interactive Dropdown (Request 3 & Request 7) */}
+        <div className="relative z-20 px-4 sm:px-5 py-2.5 border-t border-neutral-800/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-neutral-950/60">
+          <div className="relative flex-1 max-w-lg">
             <Search className="w-4 h-4 text-emerald-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               ref={searchInputRef}
               type="text"
               value={searchQuery}
+              onFocus={() => setIsSearchDropdownOpen(true)}
+              onClick={() => setIsSearchDropdownOpen(true)}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
+                setIsSearchDropdownOpen(true);
                 if (activeSection !== 'trainees') setActiveSection('trainees');
               }}
-              placeholder="بحث باسم المتدرب (أحمد، سارة، عمر، يوسف، محمد)..."
+              placeholder="اضغط للاختيار من قائمة المتدربين أو اكتب اسم المتدرب للبحث..."
               className="w-full bg-neutral-900 border border-neutral-750 focus:border-emerald-500 rounded-xl pr-10 pl-9 py-2 text-xs text-white placeholder-neutral-500 outline-none transition-all shadow-inner"
             />
             {searchQuery && (
               <button
                 type="button"
-                onClick={() => setSearchQuery('')}
+                onClick={() => {
+                  setSearchQuery('');
+                  setIsSearchDropdownOpen(false);
+                }}
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white text-xs cursor-pointer"
               >
                 ✕
               </button>
             )}
 
-            {/* Instant Live Search Suggestions Dropdown (Request 10) */}
-            {searchQuery.trim().length > 0 && (
-              <div className="absolute top-full right-0 left-0 mt-2 bg-neutral-900/98 backdrop-blur-xl border border-neutral-700/90 rounded-2xl shadow-2xl p-2 z-50 max-h-72 overflow-y-auto space-y-1">
-                <div className="px-2 py-1 text-[11px] font-bold text-neutral-400 flex items-center justify-between border-b border-neutral-800/80 pb-1.5 mb-1">
-                  <span>نتائج البحث المباشرة أثناء الكتابة:</span>
-                  <span className="text-emerald-400 font-mono font-bold bg-emerald-500/15 px-2 py-0.5 rounded-md">{filteredTrainees.length} متدرب</span>
-                </div>
-                {filteredTrainees.length === 0 ? (
-                  <div className="p-3 text-center text-xs text-neutral-400">
-                    لا يوجد متدرب مطابق لهذا الاسم
+            {/* Interactive Dropdown for Trainees Selection (Request 3) */}
+            {isSearchDropdownOpen && (
+              <>
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={() => setIsSearchDropdownOpen(false)} 
+                />
+                <div className="absolute top-full right-0 left-0 mt-2 bg-neutral-900/98 backdrop-blur-xl border border-neutral-700/90 rounded-2xl shadow-2xl p-2 z-50 max-h-72 overflow-y-auto space-y-1">
+                  <div className="px-2 py-1 text-[11px] font-bold text-neutral-400 flex items-center justify-between border-b border-neutral-800/80 pb-1.5 mb-1">
+                    <span>اختر متدرباً من القائمة المنسدلة:</span>
+                    <span className="text-emerald-400 font-mono font-bold bg-emerald-500/15 px-2 py-0.5 rounded-md">
+                      {filteredTrainees.length} متدرب
+                    </span>
                   </div>
-                ) : (
-                  filteredTrainees.map((t) => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedTraineeForDetail(t);
-                        setSearchQuery('');
-                      }}
-                      className="w-full p-2.5 rounded-xl hover:bg-neutral-800 transition-colors flex items-center justify-between gap-3 text-right cursor-pointer group border border-transparent hover:border-neutral-700"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <img
-                          src={t.avatarUrl}
-                          alt={t.fullName}
-                          className="w-9 h-9 rounded-xl object-cover border border-emerald-500/40 shrink-0"
-                          referrerPolicy="no-referrer"
-                        />
-                        <div>
-                          <h4 className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">
-                            {t.fullName}
-                          </h4>
-                          <span className="text-[11px] text-neutral-400 block mt-0.5">
-                            {t.goalTitle} · {t.currentWeightKg} كغ
+                  {filteredTrainees.length === 0 ? (
+                    <div className="p-3 text-center text-xs text-neutral-400">
+                      لا يوجد متدرب مطابق لهذا الاسم
+                    </div>
+                  ) : (
+                    filteredTrainees.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedTraineeForDetail(t);
+                          setSearchQuery('');
+                          setIsSearchDropdownOpen(false);
+                        }}
+                        className="w-full p-2.5 rounded-xl hover:bg-neutral-800 transition-colors flex items-center justify-between gap-3 text-right cursor-pointer group border border-transparent hover:border-neutral-700"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <img
+                            src={t.avatarUrl}
+                            alt={t.fullName}
+                            className="w-9 h-9 rounded-xl object-cover border border-emerald-500/40 shrink-0"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div>
+                            <h4 className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">
+                              {t.fullName}
+                            </h4>
+                            <span className="text-[11px] text-neutral-400 block mt-0.5">
+                              {t.goalTitle} · {t.currentWeightKg} كغ · PIN: {t.accessPin}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[10px] font-bold px-2 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 group-hover:bg-emerald-500 group-hover:text-neutral-950 transition-colors">
+                            عرض المتدرب ←
                           </span>
                         </div>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-[10px] font-bold px-2 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 group-hover:bg-emerald-500 group-hover:text-neutral-950 transition-colors">
-                          عرض المتدرب ←
-                        </span>
-                      </div>
-                    </button>
-                  ))
-                )}
-              </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </>
             )}
           </div>
 
@@ -406,125 +428,63 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({
         </div>
       </div>
 
-      {/* Instant Mobile Install Link Banner for Coach (المطلوب: لينك عند إرساله للمتدرب يتثبت التطبيق فوراً على هاتفه) */}
-      <div className="bg-gradient-to-r from-emerald-950/80 via-neutral-900 to-emerald-950/80 border border-emerald-500/40 rounded-2xl p-4 shadow-xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/40">
-            <Smartphone className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-black text-white">رابط تثبيت التطبيق الفوري للمتدربين (Android & iOS)</h3>
-              <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-neutral-950 text-[10px] font-black">
-                تثبيت فوري 📲
-              </span>
-            </div>
-            <p className="text-xs text-neutral-300 mt-0.5">
-              أرسل هذا الرابط لأي متدرب: بمجرد فتحه يتثبت التطبيق فوراً على شاشته الرئيسية (أندرويد وآيفون) وبكامل الشاشة بدون الحاجة لمتاجر التطبيقات.
-            </p>
-            <p className="text-[11px] text-amber-400 font-medium mt-1 flex items-center gap-1">
-              <span>💡 تنبيه:</span>
-              <span>استخدم زر النسخ أو الواتساب أدناه لإرسال الرابط المباشر العام، وتجنب نسخ رابط المتصفح العلوي (aistudio) لأنه خاص بحسابك أنت فقط ويظهر خطأ 403 للمتدرب.</span>
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => {
-              const link = getPublicInstallUrl();
-              navigator.clipboard.writeText(link);
-              triggerCheer('تم نسخ رابط التثبيت الفوري العام لجميع المتدربين 📋');
-            }}
-            className="flex-1 md:flex-none px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md cursor-pointer"
-          >
-            <Copy className="w-3.5 h-3.5" />
-            <span>نسخ رابط التثبيت الفوري 📋</span>
-          </button>
-          
-          <button
-            type="button"
-            onClick={() => {
-              const link = getPublicInstallUrl();
-              const msg = `مرحباً يا بطل! 💪\nرابط تثبيت تطبيق التدريب الرياضي والمتابعة الغذائية على هاتفك مباشرة:\n${link}\n\nافتح الرابط وسيتثبت التطبيق فوراً على شاشتك الرئيسية (أندرويد أو آيفون) بدون الحاجة لمتجر تطبيقات وبشاشة كاملة! 🚀`;
-              window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-            }}
-            className="px-3.5 py-2.5 bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-800 text-emerald-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-            title="مشاركة رابط التثبيت عبر واتساب"
-          >
-            <Share2 className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="hidden sm:inline">واتساب</span>
-          </button>
-
-          {onOpenInstallGuide && (
-            <button
-              type="button"
-              onClick={onOpenInstallGuide}
-              className="px-3 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white border border-neutral-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer"
-              title="دليل تثبيت التطبيق ورمز QR Code"
-            >
-              <QrCode className="w-3.5 h-3.5 text-emerald-400" />
-              <span>دليل وQR 📷</span>
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* KPI Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+      {/* KPI Stats Grid - Compact & Low-Profile (Request 5) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
         
         {/* Metric 1 */}
         <div 
           onClick={() => { setActiveSection('trainees'); setStatusFilter('all'); }}
-          className="bg-neutral-900 border border-neutral-800 hover:border-neutral-700 rounded-xl p-4 cursor-pointer relative overflow-hidden transition-all"
+          className="bg-neutral-900 border border-neutral-800 hover:border-neutral-700 rounded-xl p-3 cursor-pointer relative overflow-hidden transition-all flex items-center justify-between shadow-sm"
         >
-          <div className="flex items-center justify-between text-xs text-neutral-400 mb-2">
-            <span>المتدربون النشطون</span>
-            <Users className="w-4 h-4 text-emerald-400" />
+          <div>
+            <span className="text-[11px] text-neutral-400 block mb-0.5">المتدربون النشطون</span>
+            <div className="text-xl font-black font-mono tabular-nums text-white">
+              {trainees.length} <span className="text-[10px] font-normal text-neutral-400">مشترك</span>
+            </div>
+            <span className="text-[10px] text-emerald-400 mt-0.5 block">100% اشتراكات سارية</span>
           </div>
-          <div className="text-2xl font-extrabold font-mono tabular-nums text-white">
-            {trainees.length} <span className="text-xs font-normal text-neutral-400">مشترك</span>
+          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20">
+            <Users className="w-4 h-4" />
           </div>
-          <span className="text-[11px] text-emerald-400 mt-1 block">
-            100% اشتراكات سارية
-          </span>
         </div>
 
         {/* Metric 2: Pending Reviews */}
         <div 
           onClick={() => setActiveSection('pendingReviews')}
-          className="bg-neutral-900 border border-neutral-800 hover:border-amber-500/50 rounded-xl p-4 cursor-pointer transition-all relative overflow-hidden"
+          className="bg-neutral-900 border border-neutral-800 hover:border-amber-500/50 rounded-xl p-3 cursor-pointer transition-all relative overflow-hidden flex items-center justify-between shadow-sm"
         >
-          <div className="flex items-center justify-between text-xs text-neutral-400 mb-2">
-            <span>تقارير بانتظار تقييمك</span>
-            <ClipboardCheck className="w-4 h-4 text-amber-400" />
+          <div>
+            <span className="text-[11px] text-neutral-400 block mb-0.5">تقارير بانتظار تقييمك</span>
+            <div className="text-xl font-black font-mono tabular-nums text-amber-400">
+              {allPendingCheckIns.length} <span className="text-[10px] font-normal text-neutral-400">تقارير</span>
+            </div>
+            <span className="text-[10px] text-amber-400/90 mt-0.5 block">
+              {allPendingCheckIns.length > 0 ? 'اضغط للمراجعة الفورية' : 'تم الرد على الجميع'}
+            </span>
           </div>
-          <div className="text-2xl font-extrabold font-mono tabular-nums text-amber-400">
-            {allPendingCheckIns.length} <span className="text-xs font-normal text-neutral-400">تقارير</span>
+          <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/20">
+            <ClipboardCheck className="w-4 h-4" />
           </div>
-          <span className="text-[11px] text-amber-400/90 mt-1 block">
-            {allPendingCheckIns.length > 0 ? 'اضغط للمراجعة الفورية' : 'تم الرد على الجميع'}
-          </span>
         </div>
 
-        {/* Metric 3: Missing Weekly Check-ins (Trainees who haven't submitted yet) */}
+        {/* Metric 3: Missing Weekly Check-ins */}
         <div 
           onClick={() => { setActiveSection('trainees'); setStatusFilter('missing'); }}
-          className="bg-neutral-900 border border-neutral-800 hover:border-rose-500/50 rounded-xl p-4 cursor-pointer transition-all relative overflow-hidden"
+          className="bg-neutral-900 border border-neutral-800 hover:border-rose-500/50 rounded-xl p-3 cursor-pointer transition-all relative overflow-hidden flex items-center justify-between shadow-sm"
         >
-          <div className="flex items-center justify-between text-xs text-neutral-400 mb-2">
-            <span>لم يرسلوا التقرير بعد</span>
+          <div>
+            <span className="text-[11px] text-neutral-400 block mb-0.5">لم يرسلوا التقرير بعد</span>
+            <div className={`text-xl font-black font-mono tabular-nums ${traineesMissingCheckIn.length > 0 ? 'text-rose-400' : 'text-white'}`}>
+              {traineesMissingCheckIn.length} <span className="text-[10px] font-normal text-neutral-400">متدربين</span>
+            </div>
+            <span className={`text-[10px] mt-0.5 block ${traineesMissingCheckIn.length > 0 ? 'text-rose-400/90 font-medium' : 'text-emerald-400'}`}>
+              {traineesMissingCheckIn.length > 0 ? 'اضغط لتصفية المتأخرين' : 'الجميع ملتزم بالموعد'}
+            </span>
+          </div>
+          <div className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-400 flex items-center justify-center shrink-0 border border-rose-500/20">
             <AlertTriangle className={`w-4 h-4 ${traineesMissingCheckIn.length > 0 ? 'text-rose-400 animate-pulse' : 'text-neutral-500'}`} />
           </div>
-          <div className={`text-2xl font-extrabold font-mono tabular-nums ${traineesMissingCheckIn.length > 0 ? 'text-rose-400' : 'text-white'}`}>
-            {traineesMissingCheckIn.length} <span className="text-xs font-normal text-neutral-400">متدربين</span>
-          </div>
-          <span className={`text-[11px] mt-1 block ${traineesMissingCheckIn.length > 0 ? 'text-rose-400/90 font-medium' : 'text-emerald-400'}`}>
-            {traineesMissingCheckIn.length > 0 ? 'اضغط لتصفية المتأخرين' : 'الجميع ملتزم بالموعد'}
-          </span>
         </div>
-
       </div>
 
       {/* Weekly Check-In Follow-up Alert System (تنبيهات المتدربين الذين لم يرسلوا بياناتهم) */}
@@ -856,6 +816,17 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({
                         <span>تذكير بإرسال التقييم الأسبوعي (واتساب)</span>
                       </button>
                     )}
+
+                    {/* Manual Check-in Request Button (Request 13) */}
+                    <button
+                      type="button"
+                      onClick={() => requestTraineeCheckIn(trainee.id)}
+                      className="w-full flex items-center justify-center gap-1.5 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 font-bold rounded-lg text-xs transition-colors shadow-xs cursor-pointer"
+                      title="إرسال طلب فحص قياسات دوري Check-In فوراً إلى حساب المتدرب"
+                    >
+                      <ClipboardCheck className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>طلب فحص دوري Check-In 📋</span>
+                    </button>
 
                     <div className="flex items-center gap-2">
                       <button

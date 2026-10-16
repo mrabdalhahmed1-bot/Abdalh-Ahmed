@@ -183,8 +183,8 @@ export const CheckInReviewModal: React.FC<CheckInReviewModalProps> = ({ checkIn,
                 <span className="text-base font-bold font-mono tabular-nums text-white">{checkIn.measurements.thighCm} سم</span>
               </div>
               <div className="p-2.5 bg-neutral-900 rounded-lg border border-neutral-800/80">
-                <span className="text-xs text-neutral-400 block mb-0.5">الورك / الحوض</span>
-                <span className="text-base font-bold font-mono tabular-nums text-white">{checkIn.measurements.hipsCm || '-'} سم</span>
+                <span className="text-xs text-neutral-400 block mb-0.5">محيط الخصر</span>
+                <span className="text-base font-bold font-mono tabular-nums text-emerald-400">{checkIn.measurements.waistCm} سم</span>
               </div>
             </div>
           </div>

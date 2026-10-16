@@ -86,6 +86,10 @@ export interface FitnessContextType {
   exerciseWeightLogs: ExerciseWeightLog[];
   logExerciseWeight: (traineeId: string, exerciseId: string, exerciseName: string, weightKg: number, reps: number, setNumber: number) => void;
   getExerciseWeightHistory: (traineeId: string, exerciseId: string) => ExerciseWeightLog[];
+  advanceTraineeWorkoutDay: (traineeId: string) => void;
+  getTraineeCurrentWorkoutDayIndex: (traineeId: string) => number;
+  requestTraineeCheckIn: (traineeId: string) => void;
+  dispatchMotivationalUpdate: (traineeId: string, title: string, details: string) => void;
 }
 
 const STORAGE_KEY_TRAINEES = 'modarribi_trainees_v3';
@@ -1001,6 +1005,60 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  const [traineeWorkoutDayIndices, setTraineeWorkoutDayIndices] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem('aq_trainee_workout_day_indices_v1');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {};
+  });
+
+  const advanceTraineeWorkoutDay = useCallback((traineeId: string) => {
+    setTraineeWorkoutDayIndices(prev => {
+      const target = trainees.find(t => t.id === traineeId);
+      const totalDays = target?.program?.days?.length || 4;
+      const currentIndex = prev[traineeId] || 0;
+      const nextIndex = (currentIndex + 1) % totalDays;
+      const updated = { ...prev, [traineeId]: nextIndex };
+      try {
+        localStorage.setItem('aq_trainee_workout_day_indices_v1', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+    triggerCheer('تم إنهاء تمرين اليوم بنجاح! انتقل الجدول تلقائياً لليوم التالي 🚀💪');
+  }, [trainees, triggerCheer]);
+
+  const getTraineeCurrentWorkoutDayIndex = useCallback((traineeId: string) => {
+    return traineeWorkoutDayIndices[traineeId] || 0;
+  }, [traineeWorkoutDayIndices]);
+
+  const requestTraineeCheckIn = useCallback((traineeId: string) => {
+    setTrainees(prev => prev.map(t => {
+      if (t.id === traineeId) {
+        return {
+          ...t,
+          status: 'pending_checkin',
+        };
+      }
+      return t;
+    }));
+    const trainee = trainees.find(t => t.id === traineeId);
+    const traineeName = trainee?.fullName.split(' ')[0] || 'البطل';
+    sendMessage(
+      traineeId,
+      `مرحباً يا ${traineeName} 💪 معك الكوتش عبدالله قاسم.\nحان الآن موعد تقرير القياسات الدوري (Check-In)! 📋\nيرجى فتح استمارة القياسات وتسجيل وزن الصباح على الريق والمقاسات وصور التطور لمراجعة تقدمك وضبط خطتك القادمة بكل دقة. بالتوفيق يا بطل! 🚀`
+    );
+    triggerCheer('تم إرسال طلب فحص القياسات الدوري (Check-In) للمتدرب بنجاح 📋✨');
+  }, [trainees, sendMessage, triggerCheer]);
+
+  const dispatchMotivationalUpdate = useCallback((traineeId: string, title: string, details: string) => {
+    const trainee = trainees.find(t => t.id === traineeId);
+    const traineeName = trainee?.fullName.split(' ')[0] || 'البطل';
+    const msg = `مرحباً يا ${traineeName}! 🚀 تم تحديث خطتك المعتمدة بواسطة الكوتش عبدالله قاسم:\n✨ [${title}]: ${details}\nمستواك في تطور مستمر والانضباط يصنع الفارق كل يوم، راجع التحديثات وانطلق لتحقيق هدفك بكل قوة! 💪🔥`;
+    sendMessage(traineeId, msg);
+    triggerCheer('تم إرسال إشعار تحفيزي بتحديث الخطة إلى المتدرب 🚀');
+  }, [trainees, sendMessage, triggerCheer]);
+
   return (
     <FitnessContext.Provider
       value={{
@@ -1052,6 +1110,10 @@ export const FitnessProvider: React.FC<{ children: React.ReactNode }> = ({ child
         exerciseWeightLogs,
         logExerciseWeight,
         getExerciseWeightHistory,
+        advanceTraineeWorkoutDay,
+        getTraineeCurrentWorkoutDayIndex,
+        requestTraineeCheckIn,
+        dispatchMotivationalUpdate,
       }}
     >
       {children}

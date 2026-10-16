@@ -202,6 +202,66 @@ export const EXERCISE_VIDEO_MAP: Record<string, ExerciseVideoInfo> = {
     ytId: '0tn5K9NlCfo',
     start: 10,
     formNotes: 'إسناد الظهر بالكامل على الوسادة، النزول لعمق مريح ودفع قوي بكعبي القدمين.'
+  },
+  // 33. Pull-ups / Chin-ups
+  'cal-1': {
+    ytId: 'eGo4IYlbE5g',
+    start: 5,
+    formNotes: 'سحب الصدر نحو العقلة بدون أرجحة، مع عصر عضلات الظهر والنزول الكامل للأسفل.'
+  },
+  // 34. Parallel Bar Dips
+  'cal-2': {
+    ytId: '2z8JmcrW-As',
+    start: 5,
+    formNotes: 'نزول بزاوية 90 درجة للمرفقين، ميل بسيط بالجذع لزيادة تفعيل أسفل الصدر أو مستقيم للترايسبس.'
+  },
+  // 35. Push-ups
+  'cal-3': {
+    ytId: 'IODxDxX7oi4',
+    start: 5,
+    formNotes: 'استقامة الجذع والرقبة، نزول الصدر حتى يلامس الأرض تقريباً والدفع بقوة.'
+  },
+  // 36. Treadmill Incline Walk / Cardio
+  'cardio-1': {
+    ytId: '9L2b2khySLE',
+    start: 5,
+    formNotes: 'مشي سريع على انحدار 10-12% بسرعة 4-5 كم/س للحفاظ على المنطقة الثانية لحرق الدهون Zone 2.'
+  },
+  // 37. Stationary Cycling / Cardio Bike
+  'cardio-2': {
+    ytId: 'd4n09v-tG9o',
+    start: 5,
+    formNotes: 'تعديل ارتفاع المقعد لمستوى الحوض، الحفاظ على معدل دوران متوازن ومقاومة متوسطة.'
+  },
+  // 38. Arm Circles & Shoulder Dislocates (Warmup)
+  'warmup-1': {
+    ytId: '1400UtT87SI',
+    start: 5,
+    formNotes: 'تدوير الذراعين في دوائر واسعة ببطء وتحكم لتزييت مفصل الكتف وتنشيط الكفة المدورة.'
+  },
+  // 39. Cat-Cow & Thoracic Mobility (Warmup / Mobility)
+  'warmup-2': {
+    ytId: 'pbcg9qN8K-8',
+    start: 5,
+    formNotes: 'تقويس وفتح فقرات الظهر الصدرية وأسفل الظهر لتحرير مفاصل العمود الفقري وتحسين المدى الحركي.'
+  },
+  // 40. Chest Doorway Stretch (Mobility)
+  'mobility-chest': {
+    ytId: 'UeWc9YhK6Y8',
+    start: 5,
+    formNotes: 'تثبيت الساعد على الجدار بزاوية 90 درجة، الدوران بالصدر للجهة المقابلة بلطف لإطالة ألياف الصدر.'
+  },
+  // 41. Hip Flexor & Hamstring Stretch (Mobility)
+  'mobility-hip': {
+    ytId: '71zB6tXvWlE',
+    start: 5,
+    formNotes: 'نزول في وضعية الاندفاع والضغط بالحوض للأمام لإطالة عضلات الفخذ الأمامية وأوتار الركبة.'
+  },
+  // 42. Planks / Abdominal Core
+  'abs-1': {
+    ytId: 'ASdvN_XEl_c',
+    start: 5,
+    formNotes: 'شد عضلات البطن والمؤخرة في خط مستقيم، التنفس الهادئ ومنع هبوط أسفل الظهر.'
   }
 };
 
@@ -231,55 +291,107 @@ export const resolveExerciseVideo = (exercise: {
   }
 
   // 3. Precise Semantic Matching on English & Arabic Names
-  const text = `${exercise.nameEn || ''} ${exercise.nameAr || ''}`.toLowerCase();
+  const text = `${exercise.nameEn || ""} ${exercise.nameAr || ""}`.toLowerCase();
 
-  if (text.includes('pec deck') || text.includes('butterfly') || text.includes('فراشة')) {
-    return EXERCISE_VIDEO_MAP['mc-4'];
+  // Cardio & Treadmill & Bike
+  if (text.includes('treadmill') || text.includes('سير') || text.includes('مشي') || text.includes('انحدار')) {
+    return EXERCISE_VIDEO_MAP['cardio-1'];
   }
-  if (text.includes('rear delt') || text.includes('خلفي')) {
-    return EXERCISE_VIDEO_MAP['db-7'];
+  if (text.includes('cycling') || text.includes('bike') || text.includes('دراجة')) {
+    return EXERCISE_VIDEO_MAP['cardio-2'];
   }
-  if (text.includes('lateral') || text.includes('جانبي')) {
-    return EXERCISE_VIDEO_MAP['db-6'];
+
+  // Mobility & Warmup
+  if (text.includes('cat-cow') || text.includes('قطة') || text.includes('فقرات') || text.includes('thoracic')) {
+    return EXERCISE_VIDEO_MAP['warmup-2'];
   }
-  if (text.includes('hammer') || text.includes('شاكوش')) {
-    return EXERCISE_VIDEO_MAP['db-10'];
+  if (text.includes('arm circles') || text.includes('تدوير الكتف') || text.includes('كفة مدورة') || text.includes('dislocates')) {
+    return EXERCISE_VIDEO_MAP['warmup-1'];
   }
-  if (text.includes('hack squat') || text.includes('هاك')) {
-    return EXERCISE_VIDEO_MAP['mc-6'];
+  if (text.includes('chest stretch') || text.includes('إطالة الصدر')) {
+    return EXERCISE_VIDEO_MAP['mobility-chest'];
+  }
+  if (text.includes('hip flexor') || text.includes('hamstring stretch') || text.includes('إطالة الحوض') || text.includes('أوتار الركبة')) {
+    return EXERCISE_VIDEO_MAP['mobility-hip'];
+  }
+
+  // Calisthenics & Bodyweight
+  if (text.includes('pull up') || text.includes('chin up') || text.includes('عقلة')) {
+    return EXERCISE_VIDEO_MAP['cal-1'];
+  }
+  if (text.includes('dips') || text.includes('متوازي') || text.includes('غطس')) {
+    return EXERCISE_VIDEO_MAP['cal-2'];
+  }
+  if (text.includes('push up') || text.includes('ضغط الصدر') || text.includes('بوش اب')) {
+    return EXERCISE_VIDEO_MAP['cal-3'];
+  }
+  if (text.includes('plank') || text.includes('بلانك') || text.includes('crunch') || text.includes('طحن البطن') || text.includes('بطن')) {
+    return EXERCISE_VIDEO_MAP['abs-1'];
+  }
+
+  // PRIORITY 1: Specific Leg & Hamstrings (Must run before generic 'خلفي'!)
+  if (text.includes('leg curl') || text.includes('ثني أرجل') || text.includes('فخذ خلفي') || text.includes('هامسترنج') || text.includes('hamstring')) {
+    return EXERCISE_VIDEO_MAP['mc-3'];
+  }
+  if (text.includes('leg extension') || text.includes('فرد أرجل') || text.includes('تمديد أرجل') || text.includes('أمامي فخذ')) {
+    return EXERCISE_VIDEO_MAP['mc-2'];
   }
   if (text.includes('leg press') || text.includes('مكبس') || text.includes('ضغط أرجل')) {
     return EXERCISE_VIDEO_MAP['mc-1'];
   }
-  if (text.includes('leg extension') || text.includes('فرد أرجل') || text.includes('تمديد أرجل')) {
-    return EXERCISE_VIDEO_MAP['mc-2'];
-  }
-  if (text.includes('leg curl') || text.includes('ثني أرجل') || text.includes('فخذ خلفي')) {
-    return EXERCISE_VIDEO_MAP['mc-3'];
+  if (text.includes('hack squat') || text.includes('هاك')) {
+    return EXERCISE_VIDEO_MAP['mc-6'];
   }
   if (text.includes('calf') || text.includes('calves') || text.includes('سمانة')) {
     return EXERCISE_VIDEO_MAP['mc-5'];
   }
-  if (text.includes('incline') && (text.includes('bench') || text.includes('press'))) {
+
+  // PRIORITY 2: Rear Delts & Shoulders
+  if (text.includes('rear delt') || text.includes('كتف خلفي') || text.includes('رفرفة خلفي') || text.includes('face pull')) {
+    return EXERCISE_VIDEO_MAP['db-7'];
+  }
+  if (text.includes('lateral raise') || text.includes('رفرفة جانبي') || text.includes('جانبي')) {
+    return EXERCISE_VIDEO_MAP['db-6'];
+  }
+  if (text.includes('front raise') || text.includes('رفرفة أمامي')) {
+    return EXERCISE_VIDEO_MAP['db-5'];
+  }
+  if (text.includes('shoulder press') || text.includes('overhead press') || text.includes('عسكري') || text.includes('دفع كتف')) {
+    return EXERCISE_VIDEO_MAP['bb-7'];
+  }
+
+  // PRIORITY 3: Chest & Pecs
+  if (text.includes('pec deck') || text.includes('butterfly') || text.includes('فراشة')) {
+    return EXERCISE_VIDEO_MAP['mc-4'];
+  }
+  if (text.includes('cable crossover') || text.includes('cable fly') || text.includes('كروس أوفر')) {
+    return EXERCISE_VIDEO_MAP['cb-5'];
+  }
+  if (text.includes('incline') && (text.includes('dumbbell') || text.includes('دمبل'))) {
+    return EXERCISE_VIDEO_MAP['db-1'];
+  }
+  if (text.includes('incline') && (text.includes('barbell') || text.includes('بار') || text.includes('bench'))) {
     return EXERCISE_VIDEO_MAP['bb-2'];
   }
-  if (text.includes('decline') && (text.includes('bench') || text.includes('press'))) {
+  if (text.includes('decline')) {
     return EXERCISE_VIDEO_MAP['bb-3'];
+  }
+  if (text.includes('dumbbell press') || text.includes('تجميع دمبل') || text.includes('دمبل برس')) {
+    return EXERCISE_VIDEO_MAP['db-2'];
   }
   if (text.includes('bench press') || text.includes('flat bench') || text.includes('بنش مستوي')) {
     return EXERCISE_VIDEO_MAP['bb-1'];
   }
-  if (text.includes('dumbbell press') || text.includes('دمبل برس')) {
-    return EXERCISE_VIDEO_MAP['db-2'];
-  }
-  if (text.includes('shoulder press') || text.includes('overhead press') || text.includes('كتف أمامي')) {
-    return EXERCISE_VIDEO_MAP['bb-7'];
-  }
-  if (text.includes('pulldown') || text.includes('سحب عالي')) {
+
+  // PRIORITY 4: Back & Rows
+  if (text.includes('lat pulldown') || text.includes('pulldown') || text.includes('سحب عالي')) {
     return EXERCISE_VIDEO_MAP['cb-1'];
   }
-  if (text.includes('cable row') || text.includes('سحب أرضي') || text.includes('seated row')) {
+  if (text.includes('seated row') || text.includes('cable row') || text.includes('سحب أرضي')) {
     return EXERCISE_VIDEO_MAP['cb-2'];
+  }
+  if (text.includes('dumbbell row') || text.includes('منشار دمبل') || text.includes('سحب دمبل')) {
+    return EXERCISE_VIDEO_MAP['db-4'];
   }
   if (text.includes('barbell row') || text.includes('سحب بار') || text.includes('pendlay')) {
     return EXERCISE_VIDEO_MAP['bb-4'];
@@ -293,19 +405,26 @@ export const resolveExerciseVideo = (exercise: {
   if (text.includes('hip thrust') || text.includes('هيب ثرست')) {
     return EXERCISE_VIDEO_MAP['bb-12'];
   }
+
+  // PRIORITY 5: Squats & Legs
   if (text.includes('front squat') || text.includes('سكوات أمامي')) {
     return EXERCISE_VIDEO_MAP['bb-9'];
   }
-  if (text.includes('squat') || text.includes('سكوات')) {
+  if (text.includes('squat') || text.includes('سكوات') || text.includes('قرفصاء')) {
     return EXERCISE_VIDEO_MAP['bb-8'];
+  }
+
+  // PRIORITY 6: Arms (Biceps & Triceps)
+  if (text.includes('hammer') || text.includes('شاكوش')) {
+    return EXERCISE_VIDEO_MAP['db-10'];
   }
   if (text.includes('skull crusher') || text.includes('سكل كراشر')) {
     return EXERCISE_VIDEO_MAP['bb-16'];
   }
-  if (text.includes('triceps') || text.includes('ترايسبس') || text.includes('pushdown')) {
+  if (text.includes('triceps') || text.includes('ترايسبس') || text.includes('pushdown') || text.includes('حبل')) {
     return EXERCISE_VIDEO_MAP['cb-3'];
   }
-  if (text.includes('bicep') || text.includes('بايسبس') || text.includes('curl')) {
+  if (text.includes('bicep') || text.includes('بايسبس') || text.includes('curl') || text.includes('مرجحة')) {
     return EXERCISE_VIDEO_MAP['bb-13'];
   }
 

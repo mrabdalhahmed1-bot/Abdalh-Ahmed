@@ -372,52 +372,6 @@ export const TraineeNutritionTab: React.FC = () => {
   return (
     <div className="w-full space-y-4 pb-24 text-neutral-100">
       
-      {/* Diet Plan PDF Download Card (Request 4) */}
-      <div className="bg-neutral-900 border border-amber-500/30 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-md">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center shrink-0">
-            <Utensils className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-xs sm:text-sm font-black text-white">الخطة الغذائية وجدول الماكروز المعتمد</h3>
-            <p className="text-[11px] text-neutral-400">تحميل نسخة رسمية بصيغة PDF تتضمن جميع الوجبات والبدائل لهاتفك</p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={handleExportDietPdf}
-          className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-neutral-950 font-black text-xs transition-all shadow-md flex items-center gap-1.5 cursor-pointer shrink-0"
-        >
-          <FileDown className="w-4 h-4" />
-          <span>تحميل PDF 📄</span>
-        </button>
-      </div>
-
-      {/* AI Food Lens Action Banner (تصوير الطعام مدعوم بالذكاء الاصطناعي لحساب الماكروز وكميات الأكل) */}
-      <div 
-        onClick={() => setIsFoodLoggerOpen(true)}
-        className="bg-gradient-to-r from-emerald-950/60 via-neutral-900 to-neutral-900 p-4 rounded-2xl border border-emerald-500/30 flex items-center justify-between cursor-pointer hover:border-emerald-500/60 transition-all shadow-md group"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center group-hover:scale-105 transition-transform">
-            <Camera className="w-6 h-6" />
-          </div>
-          <div className="text-right">
-            <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-neutral-950 text-[10px] font-black">جديد بالذكاء الاصطناعي</span>
-              <h3 className="text-sm font-black text-white">تصوير الوجبة (AI Food Lens)</h3>
-            </div>
-            <p className="text-[11px] text-neutral-300 mt-0.5 leading-relaxed">
-              صور طبقك في المطعم لإظهار كميات الطعام بالجرام وحساب السعرات والماكروز فورياً
-            </p>
-          </div>
-        </div>
-
-        <div className="w-8 h-8 rounded-full bg-neutral-800 flex items-center justify-center text-emerald-400 group-hover:translate-x-1 transition-transform">
-          ←
-        </div>
-      </div>
-
       {/* Carb Cycling Control Banner for Mohamed Qasim */}
       {activeTrainee.customDietPlan?.planType === 'carb_cycling' && (
         <div className="bg-gradient-to-r from-neutral-900 via-neutral-950 to-neutral-900 rounded-2xl p-4 border border-amber-500/30 shadow-lg space-y-3">
@@ -490,40 +444,6 @@ export const TraineeNutritionTab: React.FC = () => {
           </button>
         </div>
       )}
-
-      {/* Calories Overview Banner */}
-      <div className="bg-gradient-to-r from-neutral-900 via-neutral-900 to-neutral-850 rounded-2xl p-5 text-white shadow-md border border-neutral-800 flex items-center justify-between">
-        <div>
-          <span className="text-[11px] text-neutral-400 block mb-0.5">
-            {activeTrainee.customDietPlan?.planType === 'carb_cycling'
-              ? `السعرات (${carbDayType === 'high' ? 'كارب عالي' : 'كارب منخفض'})`
-              : 'الهدف اليومي بالسعرات'}
-          </span>
-          <span className="text-2xl font-black text-emerald-400 font-mono">
-            {currentMacros.calories} <span className="text-xs font-bold text-white">سعرة</span>
-          </span>
-        </div>
-        <div className="flex items-center gap-4 text-left font-mono">
-          <div>
-            <span className="text-[11px] text-neutral-400 block mb-0.5">بروتين</span>
-            <span className="text-lg font-black text-white">
-              {currentMacros.protein}<span className="text-xs font-bold text-emerald-400">g</span>
-            </span>
-          </div>
-          <div>
-            <span className="text-[11px] text-neutral-400 block mb-0.5">كارب</span>
-            <span className="text-lg font-black text-amber-400">
-              {currentMacros.carbs}<span className="text-xs font-bold text-white">g</span>
-            </span>
-          </div>
-          <div>
-            <span className="text-[11px] text-neutral-400 block mb-0.5">دهون</span>
-            <span className="text-lg font-black text-neutral-300">
-              {currentMacros.fat}<span className="text-xs font-bold text-neutral-400">g</span>
-            </span>
-          </div>
-        </div>
-      </div>
 
       {/* Meals Groups List */}
       <div className="space-y-4">
@@ -670,6 +590,83 @@ export const TraineeNutritionTab: React.FC = () => {
 
           </div>
         ))}
+      </div>
+
+      {/* Calories & Macros Overview Banner - Moved after last meal (Request 9) */}
+      <div className="bg-gradient-to-r from-neutral-900 via-neutral-900 to-neutral-850 rounded-2xl p-4 text-white shadow-md border border-neutral-800 flex items-center justify-between">
+        <div>
+          <span className="text-[10px] text-neutral-400 block mb-0.5">
+            {activeTrainee.customDietPlan?.planType === 'carb_cycling'
+              ? `السعرات (${carbDayType === 'high' ? 'كارب عالي' : 'كارب منخفض'})`
+              : 'الهدف اليومي بالسعرات'}
+          </span>
+          <span className="text-xl font-black text-emerald-400 font-mono">
+            {currentMacros.calories} <span className="text-xs font-bold text-white">سعرة</span>
+          </span>
+        </div>
+        <div className="flex items-center gap-3 text-left font-mono">
+          <div>
+            <span className="text-[10px] text-neutral-400 block mb-0.5">بروتين</span>
+            <span className="text-base font-black text-white">
+              {currentMacros.protein}<span className="text-[10px] font-bold text-emerald-400">g</span>
+            </span>
+          </div>
+          <div>
+            <span className="text-[10px] text-neutral-400 block mb-0.5">كارب</span>
+            <span className="text-base font-black text-amber-400">
+              {currentMacros.carbs}<span className="text-[10px] font-bold text-white">g</span>
+            </span>
+          </div>
+          <div>
+            <span className="text-[10px] text-neutral-400 block mb-0.5">دهون</span>
+            <span className="text-base font-black text-neutral-300">
+              {currentMacros.fat}<span className="text-[10px] font-bold text-neutral-400">g</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* AI Food Lens Action Banner - Compact & positioned after last meal (Request 9) */}
+      <div 
+        onClick={() => setIsFoodLoggerOpen(true)}
+        className="bg-neutral-900/90 p-3 rounded-2xl border border-emerald-500/30 flex items-center justify-between cursor-pointer hover:border-emerald-500/60 transition-all shadow-sm group"
+      >
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
+            <Camera className="w-4 h-4" />
+          </div>
+          <div className="text-right">
+            <div className="flex items-center gap-1.5">
+              <span className="px-1.5 py-0.2 rounded-md bg-emerald-500 text-neutral-950 text-[9px] font-black">AI Lens</span>
+              <h4 className="text-xs font-black text-white">تصوير الوجبة وحساب الماكروز</h4>
+            </div>
+            <p className="text-[10px] text-neutral-400">صور طبقك لحساب الجرامات والماكروز فورياً</p>
+          </div>
+        </div>
+        <div className="px-2.5 py-1 rounded-lg bg-neutral-800 text-emerald-400 text-[10px] font-bold group-hover:bg-emerald-500 group-hover:text-neutral-950 transition-colors shrink-0">
+          فتح الكاميرا 📷
+        </div>
+      </div>
+
+      {/* Diet Plan PDF Download Card - Compact & positioned after last meal (Request 9) */}
+      <div className="bg-neutral-900/90 border border-amber-500/30 rounded-2xl p-3 flex items-center justify-between gap-2.5 shadow-sm">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0">
+            <Utensils className="w-4 h-4" />
+          </div>
+          <div>
+            <h4 className="text-xs font-black text-white">الخطة الغذائية والماكروز المعتمدة</h4>
+            <p className="text-[10px] text-neutral-400">تحميل نسخة رسمية بصيغة PDF لهاتفك</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={handleExportDietPdf}
+          className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black text-[11px] transition-all shadow-xs flex items-center gap-1 cursor-pointer shrink-0"
+        >
+          <FileDown className="w-3.5 h-3.5" />
+          <span>تحميل PDF 📄</span>
+        </button>
       </div>
 
       {/* Read-Only Food Detail Modal */}

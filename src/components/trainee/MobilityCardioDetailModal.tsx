@@ -11,6 +11,7 @@ import {
   Clock, 
   ShieldCheck 
 } from 'lucide-react';
+import { resolveExerciseVideo } from '../../utils/exerciseVideoMap';
 
 interface MobilityCardioDetailModalProps {
   isOpen: boolean;
@@ -43,6 +44,12 @@ export const MobilityCardioDetailModal: React.FC<MobilityCardioDetailModalProps>
   onOpenSwap
 }) => {
   const [isPlaying, setIsPlaying] = useState(true);
+  const videoData = resolveExerciseVideo({
+    id: item.id,
+    nameAr: item.title,
+    nameEn: item.subtitle
+  });
+  const ytId = videoData.ytId;
 
   if (!isOpen) return null;
 
@@ -89,11 +96,7 @@ export const MobilityCardioDetailModal: React.FC<MobilityCardioDetailModalProps>
         {/* Video Player Box - Pure Technique Video */}
         <div className="relative w-full aspect-video bg-black border-b border-neutral-800 overflow-hidden">
           <iframe
-            src={`https://www.youtube-nocookie.com/embed/${
-              type === 'mobility' ? 'FDwpXvS4q4s' : '9E_yH_oT-6s'
-            }?autoplay=1&mute=1&controls=1&loop=1&playlist=${
-              type === 'mobility' ? 'FDwpXvS4q4s' : '9E_yH_oT-6s'
-            }&playsinline=1&rel=0&modestbranding=1`}
+            src={`https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&mute=1&controls=1&loop=1&playlist=${ytId}&playsinline=1&rel=0&modestbranding=1`}
             title={`تكنيك ${item.title}`}
             className="w-full h-full border-0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

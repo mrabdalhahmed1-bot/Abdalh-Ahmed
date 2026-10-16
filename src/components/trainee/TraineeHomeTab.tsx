@@ -19,7 +19,8 @@ import {
   ShieldCheck,
   Scale,
   Activity,
-  Zap
+  Zap,
+  ClipboardCheck
 } from 'lucide-react';
 import { BiologicalAgeModal } from './BiologicalAgeModal';
 import { usePhoneStepTracker } from '../../hooks/usePhoneStepTracker';
@@ -44,7 +45,8 @@ export const TraineeHomeTab: React.FC<TraineeHomeTabProps> = ({
     setWeeklySleepHours,
     triggerCheer,
     triggerFullCompletion,
-    registerBackHandler
+    registerBackHandler,
+    getTraineeCurrentWorkoutDayIndex
   } = useFitness();
   const [isBioAgeOpen, setIsBioAgeOpen] = useState(false);
   const [showWeightModal, setShowWeightModal] = useState(false);
@@ -115,8 +117,10 @@ export const TraineeHomeTab: React.FC<TraineeHomeTabProps> = ({
   const remainingCalories = Math.max(0, activeTrainee.macroGoals.calories - totalCaloriesConsumed);
   const calPercent = Math.min(100, Math.round((totalCaloriesConsumed / activeTrainee.macroGoals.calories) * 100));
 
-  // Current Workout Day
-  const currentDay = activeTrainee.program.days[0];
+  // Current Workout Day (يتغير لليوم التالي عند إتمام التمرين - Request 10)
+  const currentWorkoutDayIdx = getTraineeCurrentWorkoutDayIndex(activeTrainee.id);
+  const totalProgramDays = activeTrainee.program.days.length || 1;
+  const currentDay = activeTrainee.program.days[currentWorkoutDayIdx % totalProgramDays] || activeTrainee.program.days[0];
 
   // Dynamic Arabic Date e.g. 28 سبتمبر
   const todayFormatted = new Intl.DateTimeFormat('ar-EG', {
@@ -127,12 +131,33 @@ export const TraineeHomeTab: React.FC<TraineeHomeTabProps> = ({
 
   const firstName = activeTrainee.fullName.split(' ')[0] || 'البطل';
 
-  // Subscription calculation (منضم من متى وفاضلو كم يوم متبقي)
-  const joinDateStr = '12 يناير 2025'; // تاريخ انضمام المتدرب
+  // Subscription calculation (كل يوم يمر ينقص الرقم 1 يوم - Request 10)
+  const subStartDateKey = `aq_sub_start_${activeTrainee.id}`;
+  let startDateTimestamp: number;
+  const storedStartDate = typeof window !== 'undefined' ? localStorage.getItem(subStartDateKey) : null;
+  if (storedStartDate) {
+    startDateTimestamp = parseInt(storedStartDate, 10);
+  } else {
+    // 42 days ago so initial remaining is 48 out of 90 days
+    startDateTimestamp = Date.now() - 42 * 24 * 60 * 60 * 1000;
+    try {
+      localStorage.setItem(subStartDateKey, startDateTimestamp.toString());
+    } catch {}
+  }
+  const daysElapsed = Math.floor((Date.now() - startDateTimestamp) / (24 * 60 * 60 * 1000));
   const totalSubDays = 90;
-  const daysRemaining = 48; // فاضلو 48 يوم متبقي
+  const daysRemaining = Math.max(0, totalSubDays - daysElapsed);
   const daysPassed = totalSubDays - daysRemaining;
   const subProgressPercent = Math.round((daysRemaining / totalSubDays) * 100);
+  const joinDateStr = '12 يناير 2025';
+
+  // Bi-weekly automatic check-in trigger (Request 13)
+  const lastCheckInTime = activeTrainee.checkIns && activeTrainee.checkIns.length > 0
+    ? new Date(activeTrainee.checkIns[0].date).getTime()
+    : startDateTimestamp;
+  const twoWeeksMs = 14 * 24 * 60 * 60 * 1000;
+  const isBiweeklyCheckInDue = (Date.now() - lastCheckInTime) >= twoWeeksMs;
+  const isCheckInPromptActive = activeTrainee.status === 'pending_checkin' || isBiweeklyCheckInDue;
 
   // Weight metrics
   const startingWeight = 84.0;
@@ -234,6 +259,53 @@ export const TraineeHomeTab: React.FC<TraineeHomeTabProps> = ({
         </div>
       </div>
 
+      {/* Bi-weekly Check-In Prompt / Coach Request Banner (Request 13) */}
+      <div className={`rounded-2xl p-4 shadow-md border transition-all ${
+        isCheckInPromptActive
+          ? 'bg-gradient-to-r from-amber-950/70 via-neutral-900 to-amber-950/70 border-amber-500/50'
+          : 'bg-neutral-900/90 border-neutral-800'
+      }`}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
+              isCheckInPromptActive
+                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40 animate-pulse'
+                : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+            }`}>
+              <ClipboardCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-black text-white">
+                  استمارة فحص القياسات الدوري (Check-In)
+                </h3>
+                {isCheckInPromptActive && (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-500 text-neutral-950 text-[10px] font-black animate-pulse">
+                    مطلوب الآن (كل أسبوعين)
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-neutral-400 mt-0.5 leading-relaxed">
+                {isCheckInPromptActive 
+                  ? 'حان موعد الفحص الدوري! أدخل وزن الصباح ومقاساتك لتحديث خطتك' 
+                  : 'فحص دوري كل أسبوعين لتسجيل القياسات ومتابعة التطور مع الكوتش'}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onOpenCheckIn}
+            className={`px-4 py-2.5 rounded-xl font-black text-xs transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer shrink-0 ${
+              isCheckInPromptActive
+                ? 'bg-amber-500 hover:bg-amber-400 text-neutral-950 shadow-amber-500/20'
+                : 'bg-emerald-500 hover:bg-emerald-400 text-neutral-950 shadow-emerald-500/20'
+            }`}
+          >
+            <span>فتح استمارة Check-In 📋</span>
+          </button>
+        </div>
+      </div>
+
       {/* Hero Workout Spotlight Card */}
       <div className="relative rounded-2xl overflow-hidden bg-gradient-to-r from-neutral-900 via-neutral-900 to-neutral-850 p-5 shadow-lg border border-neutral-800 space-y-3">
         <div className="flex items-center justify-between">
@@ -289,136 +361,23 @@ export const TraineeHomeTab: React.FC<TraineeHomeTabProps> = ({
         </button>
       </div>
 
-      {/* Calories & Macros Summary Bar */}
-      <div className="bg-neutral-900/90 rounded-2xl p-4 shadow-sm border border-neutral-800 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Flame className="w-4 h-4 text-emerald-400" />
-            <span className="text-xs font-black text-white">السعرات والماكروز اليومية</span>
-          </div>
-          <button
-            onClick={() => onNavigateTab('nutrition')}
-            className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 hover:underline"
-          >
-            عرض الوجبات ↗
-          </button>
-        </div>
-
-        {/* Progress Bar */}
-        <div>
-          <div className="flex justify-between text-xs mb-1.5">
-            <span className="text-neutral-400 font-medium">تم استهلاك: <strong className="text-white">{totalCaloriesConsumed}</strong> سعرة</span>
-            <span className="text-neutral-400 font-medium">الهدف: <strong className="text-white">{activeTrainee.macroGoals.calories}</strong> سعرة</span>
-          </div>
-          <div className="h-2 bg-neutral-950 rounded-full overflow-hidden border border-neutral-800">
-            <div 
-              className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500"
-              style={{ width: `${calPercent}%` }}
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2 text-center pt-1 text-xs">
-          <div className="bg-neutral-950/70 p-2 rounded-xl border border-neutral-800">
-            <span className="text-[10px] text-neutral-400 block">بروتين</span>
-            <span className="font-bold text-emerald-400">{totalProteinConsumed} / {activeTrainee.macroGoals.proteinGrams}g</span>
-          </div>
-          <div className="bg-neutral-950/70 p-2 rounded-xl border border-neutral-800">
-            <span className="text-[10px] text-neutral-400 block">كارب</span>
-            <span className="font-bold text-neutral-200">120 / {activeTrainee.macroGoals.carbsGrams}g</span>
-          </div>
-          <div className="bg-neutral-950/70 p-2 rounded-xl border border-neutral-800">
-            <span className="text-[10px] text-neutral-400 block">المتبقي</span>
-            <span className="font-bold text-emerald-400">{remainingCalories} سعرة</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Habit Tracker - Water removed as requested, Steps auto-tracked from phone sensors, Sleep */}
-      <div className="grid grid-cols-2 gap-3">
-        {/* Steps with Automatic Phone Link */}
-        <div className="bg-neutral-900/90 p-3.5 rounded-2xl border border-neutral-800 shadow-xs flex flex-col justify-between relative overflow-hidden">
-          <div className="flex items-center justify-between">
+      {/* Quick Habit Tracker - Steps auto-tracked from phone (Calories, Macros & Sleep removed as per Request 8) */}
+      <div className="bg-neutral-900/90 p-4 rounded-2xl border border-neutral-800 shadow-xs flex items-center justify-between relative overflow-hidden">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 flex items-center justify-center shrink-0">
             <Footprints className={`w-5 h-5 ${isLiveWalking ? 'text-emerald-300 scale-110' : 'text-emerald-400'} transition-all`} />
-            <div className="flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span className="text-[9px] font-bold text-emerald-400">تتبع تلقائي من الهاتف</span>
-            </div>
           </div>
-          <div className="mt-3">
-            <span className="text-[10px] text-neutral-400 block font-medium">خطوات اليوم (تلقائي)</span>
-            <span className="text-base font-black text-white font-mono">{autoSteps.toLocaleString()}</span>
-            <span className="text-[10px] text-neutral-500 block mt-0.5">الهدف: 10,000 خطوة</span>
+          <div>
+            <span className="text-[10px] text-neutral-400 block font-medium">خطوات اليوم (تتبع تلقائي من الهاتف)</span>
+            <div className="flex items-baseline gap-2 mt-0.5">
+              <span className="text-xl font-black text-white font-mono">{autoSteps.toLocaleString()}</span>
+              <span className="text-xs text-neutral-400 font-medium">/ 10,000 خطوة</span>
+            </div>
           </div>
         </div>
-
-        {/* Sleep - Weekly submission: 1 to 3 hours, 3 to 5 hours, 7 to 9 hours */}
-        <div className="bg-neutral-900/90 p-3.5 rounded-2xl border border-neutral-800 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <Moon className="w-4 h-4 text-indigo-400" />
-              <span className="text-xs font-bold text-white">متوسط نوم الأسبوع</span>
-            </div>
-            <span className="text-[9px] text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded-md">
-              تسجيل أسبوعي
-            </span>
-          </div>
-
-          <div className="mt-2 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] text-neutral-400 block font-medium">ساعات النوم (مرة أسبوعياً):</span>
-              <span className="text-[9px] text-emerald-400">✓ معتمد للمدرب</span>
-            </div>
-            <div className="grid grid-cols-3 gap-1">
-              <button
-                type="button"
-                onClick={() => setWeeklySleepHours(2)}
-                className={`py-1.5 px-1 rounded-lg text-center transition-all cursor-pointer border ${
-                  weeklySleepHours <= 3
-                    ? 'bg-rose-950/60 border-rose-500/70 text-rose-300 font-black shadow-xs'
-                    : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white'
-                }`}
-                title="من 1 إلى 3 ساعات (نوم قليل جداً)"
-              >
-                <span className="text-[10px] block font-mono">1 - 3</span>
-                <span className="text-[8px] text-neutral-400 block">ساعات</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setWeeklySleepHours(4)}
-                className={`py-1.5 px-1 rounded-lg text-center transition-all cursor-pointer border ${
-                  weeklySleepHours > 3 && weeklySleepHours <= 5
-                    ? 'bg-amber-950/60 border-amber-500/70 text-amber-300 font-black shadow-xs'
-                    : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white'
-                }`}
-                title="من 3 إلى 5 ساعات (نوم متوسط)"
-              >
-                <span className="text-[10px] block font-mono">3 - 5</span>
-                <span className="text-[8px] text-neutral-400 block">ساعات</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setWeeklySleepHours(8)}
-                className={`py-1.5 px-1 rounded-lg text-center transition-all cursor-pointer border ${
-                  weeklySleepHours > 5
-                    ? 'bg-emerald-950/60 border-emerald-500/70 text-emerald-300 font-black shadow-xs'
-                    : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white'
-                }`}
-                title="من 7 إلى 9 ساعات (استشفاء مثالي)"
-              >
-                <span className="text-[10px] block font-mono">7 - 9</span>
-                <span className="text-[8px] text-neutral-400 block">ساعات ✓</span>
-              </button>
-            </div>
-            <div className="flex items-center justify-between text-[9px] text-neutral-400 pt-0.5">
-              <span>المسجل أسبوعياً: <strong className="text-white font-mono">{weeklySleepHours}h</strong></span>
-              <span className={weeklySleepHours > 5 ? 'text-emerald-400 font-bold' : weeklySleepHours <= 3 ? 'text-rose-400 font-bold' : 'text-amber-400 font-bold'}>
-                {weeklySleepHours > 5 ? 'استشفاء عميق 90%' : weeklySleepHours <= 3 ? 'تنبيه: إرهاق' : 'استشفاء متوسط 65%'}
-              </span>
-            </div>
-          </div>
+        <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span className="text-[10px] font-bold text-emerald-400">متصل بالهاتف</span>
         </div>
       </div>
 
